@@ -1,0 +1,189 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { Avatar } from "@/components/ui/Avatar";
+import { Badge } from "@/components/ui/Badge";
+import { Modal } from "@/components/ui/Modal";
+import { PriorityBadge, OrderStatusBadge, SyncStatusBadge } from "@/components/ui/StatusBadge";
+import { useOrders } from "@/lib/hooks/useOrders";
+import { useTechnicians } from "@/lib/hooks/useTechnicians";
+import type { Order } from "@/lib/utils";
+import { CheckCircle, RefreshCw, UserPlus, Zap } from "lucide-react";
+
+export default function AssignmentPage() {
+  const { orders, loading, assignOrder }      = useOrders();
+  const { technicians }                       = useTechnicians();
+
+  const [target,       setTarget]       = useState<Order | null>(null);
+  const [selectedTech, setSelectedTech] = useState<string | null>(null);
+  const [assigning,    setAssigning]    = useState(false);
+
+  const unassigned = orders.filter(o => o.status === "pending");
+  const inFlight   = orders.filter(o => o.status === "assigned" || o.status === "en-route" || o.status === "in-progress");
+
+  const confirmAssign = async () => {
+    if (!target || !selectedTech) return;
+    setAssigning(true);
+    const tech = technicians.find(t => t.id === selectedTech);
+    if (tech) await assignOrder(target.id, tech.id, tech.name);
+    setAssigning(false);
+    setTarget(null);
+    setSelectedTech(null);
+  };
+
+  return (
+    <div className="space-y-6">
+
+      {/* Summary */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-5 py-4">
+          <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">Unassigned</p>
+          <p className="text-3xl font-mono font-bold text-emergency-red mt-1">{unassigned.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-5 py-4">
+          <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">In Flight</p>
+          <p className="text-3xl font-mono font-bold text-warning-amber mt-1">{inFlight.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-5 py-4">
+          <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">Available Techs</p>
+          <p className="text-3xl font-mono font-bold text-green-600 mt-1">
+            {technicians.filter(t => t.online && t.activeOrders === 0).length}
+          </p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        {/* Unassigned orders queue */}
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-outline-variant/30 bg-surface-container/50 flex items-center justify-between">
+            <h3 className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface">Pending Assignment</h3>
+            {loading && <RefreshCw className="h-3.5 w-3.5 animate-spin text-on-surface-variant" />}
+          </div>
+          <div className="divide-y divide-outline-variant/20">
+            {unassigned.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <CheckCircle className="h-8 w-8 text-green-500" />
+                <p className="text-sm text-on-surface-variant">All orders assigned</p>
+              </div>
+            ) : unassigned.map(order => (
+              <div key={order.id} className="flex items-center gap-3 px-5 py-3.5">
+                <PriorityBadge priority={order.priority} size="sm" animate={order.priority === "stat"} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-on-surface truncate">{order.patientName}</p>
+                  <p className="text-xs text-on-surface-variant truncate">{order.facilityName} · {order.scheduledTime}</p>
+                  <p className="text-xs font-mono text-medical-blue mt-0.5">{order.cptCode}</p>
+                </div>
+                <Button
+                  variant={order.priority === "stat" ? "stat" : "primary"}
+                  size="sm"
+                  className="gap-1.5 shrink-0"
+                  onClick={() => { setTarget(order); setSelectedTech(null); }}
+                >
+                  <UserPlus className="h-3.5 w-3.5" /> Assign
+                </Button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* In-flight orders */}
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-outline-variant/30 bg-surface-container/50">
+            <h3 className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface">In Flight</h3>
+          </div>
+          <div className="divide-y divide-outline-variant/20">
+            {inFlight.length === 0 ? (
+              <p className="px-5 py-10 text-sm text-on-surface-variant text-center">No orders in flight</p>
+            ) : inFlight.map(order => (
+              <div key={order.id} className="flex items-center gap-3 px-5 py-3.5">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-semibold text-on-surface">{order.patientName}</span>
+                    <PriorityBadge priority={order.priority} size="sm" />
+                  </div>
+                  <p className="text-xs text-on-surface-variant truncate mt-0.5">{order.facilityName}</p>
+                  {order.assignedTech && (
+                    <p className="text-xs font-mono text-medical-blue mt-0.5">{order.assignedTech}</p>
+                  )}
+                </div>
+                <OrderStatusBadge status={order.status} size="sm" />
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Technician availability */}
+      <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card overflow-hidden">
+        <div className="px-5 py-3 border-b border-outline-variant/30 bg-surface-container/50 flex items-center gap-2">
+          <Zap className="h-4 w-4 text-warning-amber" />
+          <h3 className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface">Technician Availability</h3>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 divide-y sm:divide-y-0 sm:divide-x divide-outline-variant/20">
+          {technicians.map(tech => (
+            <div key={tech.id} className="px-5 py-4 flex items-center gap-3">
+              <Avatar initials={tech.initials} size="sm" status={tech.online ? "online" : "offline"} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface truncate">{tech.name}</p>
+                <p className="text-xs text-on-surface-variant truncate">{tech.zone}</p>
+                <div className="flex items-center gap-2 mt-1">
+                  <SyncStatusBadge status={tech.syncStatus} />
+                  <span className="text-[10px] font-mono text-on-surface-variant">{tech.activeOrders} active</span>
+                </div>
+              </div>
+              {tech.batteryLevel !== undefined && (
+                <span className={`text-xs font-mono shrink-0 ${
+                  tech.batteryLevel > 50 ? "text-green-600"
+                  : tech.batteryLevel > 20 ? "text-warning-amber"
+                  : "text-emergency-red"
+                }`}>{tech.batteryLevel}%</span>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Assign modal */}
+      <Modal
+        open={!!target}
+        onClose={() => setTarget(null)}
+        title="Assign Order"
+        description={target ? `${target.patientName} · ${target.procedure} · ${target.facilityName}` : ""}
+        size="md"
+      >
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-4">
+            <PriorityBadge priority={target?.priority ?? "routine"} />
+            <Badge variant="default" size="sm">{target?.scheduledTime}</Badge>
+          </div>
+
+          {technicians.filter(t => t.online).map(tech => (
+            <button
+              key={tech.id}
+              onClick={() => setSelectedTech(tech.id)}
+              className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 text-left transition-all ${
+                selectedTech === tech.id ? "border-medical-blue bg-blue-50" : "border-outline-variant hover:border-medical-blue/50"
+              }`}
+            >
+              <Avatar initials={tech.initials} size="sm" status="online" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-on-surface">{tech.name}</p>
+                <p className="text-xs text-on-surface-variant">{tech.zone} · {tech.activeOrders} active · {tech.completedToday} done today</p>
+              </div>
+              <span className="text-xs font-mono text-on-surface-variant shrink-0">{tech.batteryLevel}%</span>
+            </button>
+          ))}
+
+          <div className="flex justify-end gap-2 pt-3">
+            <Button variant="outline" onClick={() => setTarget(null)}>Cancel</Button>
+            <Button variant="primary" disabled={!selectedTech || assigning} onClick={confirmAssign}>
+              {assigning ? "Assigning…" : "Confirm"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
