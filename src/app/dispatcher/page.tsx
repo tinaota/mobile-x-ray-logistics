@@ -25,7 +25,7 @@ import { cn } from "@/lib/utils";
 import {
   AlertTriangle, Radio, Battery, MapPin, ShieldCheck,
   Clock, RefreshCw, LayoutDashboard, Users,
-  Send, Plus, CheckCheck, MessageCircle,
+  Send, Plus, CheckCheck, MessageCircle, Phone,
 } from "lucide-react";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -99,10 +99,11 @@ export default function DispatcherHub() {
   // ── Messages tab ──────────────────────────────────────────────────────────
   const [msgSelectedId, setMsgSelectedId] = useState<string | null>(null);
   const [msgInput,      setMsgInput]      = useState("");
+  const [smsMode,       setSmsMode]       = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const msgActiveOrders = orders.filter(o => o.status !== "complete" && o.status !== "billed");
   const msgSelectedOrder = orders.find(o => o.id === msgSelectedId) ?? null;
-  const { messages, sendMessage } = useMessages(msgSelectedId);
+  const { messages, sendMessage, sendSms } = useMessages(msgSelectedId);
 
   useEffect(() => {
     if (!msgSelectedId && msgActiveOrders.length > 0) setMsgSelectedId(msgActiveOrders[0].id);
@@ -114,7 +115,11 @@ export default function DispatcherHub() {
 
   const handleSend = async () => {
     if (!msgInput.trim()) return;
-    await sendMessage(msgInput);
+    if (smsMode && msgSelectedOrder?.phone) {
+      await sendSms(msgSelectedOrder.phone, msgInput);
+    } else {
+      await sendMessage(msgInput);
+    }
     setMsgInput("");
   };
 
@@ -551,6 +556,8 @@ export default function DispatcherHub() {
                   )}
                   {messages.map((msg, i) => {
                     const isDispatcher = msg.senderRole === "dispatcher";
+                    const isPatient    = msg.senderRole === "patient";
+                    const isTech       = msg.senderRole === "technician";
                     const prevMsg      = messages[i - 1];
                     const showDate     = !prevMsg ||
                       new Date(msg.createdAt).toDateString() !== new Date(prevMsg.createdAt).toDateString();
@@ -565,29 +572,38 @@ export default function DispatcherHub() {
                             <div className="h-px flex-1 bg-outline-variant/50" />
                           </div>
                         )}
-                        <div className={cn("flex flex-col", isDispatcher ? "items-start" : "items-end")}>
+                        <div className={cn("flex flex-col", isTech ? "items-end" : "items-start")}>
                           <div className="flex items-center gap-2 mb-1 px-1">
-                            {isDispatcher ? (
-                              <>
-                                <span className="text-xs font-label font-semibold uppercase tracking-wide text-midnight-navy">{msg.senderName}</span>
-                                <span className="text-[9px] text-on-surface-variant">{formatTime(msg.createdAt)}</span>
-                              </>
-                            ) : (
+                            {isTech ? (
                               <>
                                 <span className="text-[9px] text-on-surface-variant">{formatTime(msg.createdAt)}</span>
                                 <span className="text-xs font-label font-semibold uppercase tracking-wide text-medical-blue">{msg.senderName}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="text-xs font-label font-semibold uppercase tracking-wide text-midnight-navy">
+                                  {msg.senderName}
+                                </span>
+                                {msg.channel === "sms" && (
+                                  <span className="inline-flex items-center gap-0.5 text-[9px] font-label font-semibold uppercase tracking-wide text-green-600 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">
+                                    <Phone className="h-2.5 w-2.5" /> SMS
+                                  </span>
+                                )}
+                                <span className="text-[9px] text-on-surface-variant">{formatTime(msg.createdAt)}</span>
                               </>
                             )}
                           </div>
                           <div className={cn(
                             "max-w-[88%] px-3 py-2.5 text-sm leading-relaxed shadow-sm break-words",
-                            isDispatcher
-                              ? "bg-white border border-outline-variant rounded-2xl rounded-tl-none text-on-surface"
-                              : "bg-midnight-navy text-white rounded-2xl rounded-tr-none"
+                            isTech
+                              ? "bg-midnight-navy text-white rounded-2xl rounded-tr-none"
+                              : isPatient
+                              ? "bg-slate-100 border border-outline-variant/60 rounded-2xl rounded-tl-none text-on-surface"
+                              : "bg-white border border-outline-variant rounded-2xl rounded-tl-none text-on-surface"
                           )}>
                             {msg.content}
                           </div>
-                          {!isDispatcher && (
+                          {isTech && (
                             <div className="flex items-center gap-1 mt-1 px-1">
                               <CheckCheck className="h-3 w-3 text-medical-blue" />
                               <span className="text-[9px] text-on-surface-variant uppercase">
@@ -619,24 +635,58 @@ export default function DispatcherHub() {
                     <button className="text-on-surface-variant hover:text-medical-blue transition-colors shrink-0">
                       <Plus className="h-5 w-5" />
                     </button>
+                    {/* SMS toggle — only shown when order has a patient phone number */}
+                    {msgSelectedOrder.phone && (
+                      <button
+                        onClick={() => setSmsMode(m => !m)}
+                        title={smsMode ? "Switch to in-app" : "Send as SMS"}
+                        className={cn(
+                          "shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors",
+                          smsMode
+                            ? "bg-green-500 border-green-600 text-white shadow-sm"
+                            : "border-outline-variant text-on-surface-variant hover:text-green-600 hover:border-green-400"
+                        )}
+                      >
+                        <Phone className="h-4 w-4" />
+                      </button>
+                    )}
                     <div className="relative flex-1 min-w-0">
                       <input
                         type="text"
                         value={msgInput}
                         onChange={e => setMsgInput(e.target.value)}
                         onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-                        placeholder={msgSelectedOrder.assignedTech ? `Message ${msgSelectedOrder.assignedTech}…` : "Send a message…"}
-                        className="w-full bg-ghost-white border border-outline-variant rounded-xl py-2.5 px-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:ring-medical-blue focus:bg-white transition-all placeholder:text-on-surface-variant/60"
+                        placeholder={
+                          smsMode
+                            ? `SMS to ${msgSelectedOrder.phone ?? "patient"}…`
+                            : msgSelectedOrder.assignedTech
+                              ? `Message ${msgSelectedOrder.assignedTech}…`
+                              : "Send a message…"
+                        }
+                        className={cn(
+                          "w-full border rounded-xl py-2.5 px-4 pr-12 text-sm focus:outline-none focus:ring-2 focus:bg-white transition-all placeholder:text-on-surface-variant/60",
+                          smsMode
+                            ? "bg-green-50 border-green-300 focus:ring-green-400"
+                            : "bg-ghost-white border-outline-variant focus:ring-medical-blue"
+                        )}
                       />
                       <button
                         onClick={handleSend}
                         disabled={!msgInput.trim()}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-medical-blue text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none shadow-sm"
+                        className={cn(
+                          "absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center text-white rounded-lg transition-colors disabled:opacity-40 disabled:cursor-not-allowed disabled:pointer-events-none shadow-sm",
+                          smsMode ? "bg-green-500 hover:bg-green-600" : "bg-medical-blue hover:bg-blue-600"
+                        )}
                       >
-                        <Send className="h-3.5 w-3.5" />
+                        {smsMode ? <Phone className="h-3.5 w-3.5" /> : <Send className="h-3.5 w-3.5" />}
                       </button>
                     </div>
                   </div>
+                  {smsMode && msgSelectedOrder.phone && (
+                    <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-green-600 mt-1.5 px-1 flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> SMS · {msgSelectedOrder.phone}
+                    </p>
+                  )}
                 </div>
               </>
             ) : (

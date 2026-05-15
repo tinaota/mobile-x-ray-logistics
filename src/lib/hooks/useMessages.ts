@@ -6,21 +6,25 @@ import { supabase } from "@/lib/supabase";
 export interface Message {
   id: string;
   orderId: string;
-  senderRole: "dispatcher" | "technician";
+  senderRole: "dispatcher" | "technician" | "patient";
   senderName: string;
   content: string;
   readAt: string | null;
   createdAt: string;
+  channel: "in_app" | "sms";
+  smsSid?: string;
 }
 
 interface DbMessage {
   id: string;
   order_id: string;
-  sender_role: "dispatcher" | "technician";
+  sender_role: "dispatcher" | "technician" | "patient";
   sender_name: string;
   content: string;
   read_at: string | null;
   created_at: string;
+  channel?: "in_app" | "sms";
+  sms_sid?: string | null;
 }
 
 function toMessage(r: DbMessage): Message {
@@ -32,6 +36,8 @@ function toMessage(r: DbMessage): Message {
     content:    r.content,
     readAt:     r.read_at,
     createdAt:  r.created_at,
+    channel:    r.channel ?? "in_app",
+    smsSid:     r.sms_sid ?? undefined,
   };
 }
 
@@ -66,6 +72,7 @@ export function useMessages(orderId: string | null) {
     return () => { supabase.removeChannel(channel); };
   }, [orderId, fetchMessages]);
 
+  // Send in-app message (saved to Supabase only)
   const sendMessage = async (content: string, senderName = "Dispatch HQ") => {
     if (!orderId || !content.trim()) return;
     await supabase.from("messages").insert({
@@ -73,10 +80,25 @@ export function useMessages(orderId: string | null) {
       sender_role: "dispatcher",
       sender_name: senderName,
       content:     content.trim(),
+      channel:     "in_app",
     });
   };
 
-  return { messages, loading, sendMessage, refetch: fetchMessages };
+  // Send real SMS via Twilio (API route handles Twilio + saves to DB)
+  const sendSms = async (phone: string, content: string, senderName = "Dispatch HQ") => {
+    if (!orderId || !content.trim() || !phone) return;
+    const res = await fetch("/api/sms/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to: phone, message: content.trim(), orderId, senderName }),
+    });
+    if (!res.ok) {
+      const json = await res.json().catch(() => ({}));
+      console.error("SMS send failed:", json.error ?? res.statusText);
+    }
+  };
+
+  return { messages, loading, sendMessage, sendSms, refetch: fetchMessages };
 }
 
 export function useAllMessages() {
@@ -101,8 +123,9 @@ export function useAllMessages() {
     return () => { supabase.removeChannel(channel); };
   }, [fetchAll]);
 
+  // Count unread from technician OR patient (SMS replies)
   const unreadByOrder = messages.reduce<Record<string, number>>((acc, m) => {
-    if (m.senderRole === "technician" && !m.readAt) {
+    if ((m.senderRole === "technician" || m.senderRole === "patient") && !m.readAt) {
       acc[m.orderId] = (acc[m.orderId] ?? 0) + 1;
     }
     return acc;

@@ -59,7 +59,27 @@ export function useOrders() {
   const updateOrderStatus = async (id: string, status: Order["status"]) => {
     if (!supabaseConfigured) return;
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
-    if (error) setError(error.message);
+    if (error) { setError(error.message); return; }
+
+    // Fire-and-forget SMS notification to patient on key status transitions
+    const notifiable = ["assigned", "en-route", "in-progress", "complete"];
+    if (notifiable.includes(status)) {
+      const order = orders.find(o => o.id === id);
+      if (order?.phone) {
+        fetch("/api/sms/notify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId:       id,
+            status,
+            patientName:   order.patientName,
+            phone:         order.phone,
+            assignedTech:  order.assignedTech,
+            scheduledTime: order.scheduledTime,
+          }),
+        }).catch(() => {});
+      }
+    }
   };
 
   const assignOrder = async (id: string, technicianId: string, assignedTech: string) => {
