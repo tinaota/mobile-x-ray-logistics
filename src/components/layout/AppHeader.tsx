@@ -26,12 +26,14 @@ const roleLabel: Record<Role, string> = {
   dispatcher: "RAD-COMMAND",
   technician: "RAD-FIELD",
   billing:    "REVENUE COMMAND",
+  client:     "MY X-RAY",
 };
 
 const roleSubtitle: Record<Role, string> = {
   dispatcher: "Dispatch & Fleet Operations",
   technician: "Field Technician Portal",
   billing:    "Unified Logistics Suite",
+  client:     "Home & Care Visit",
 };
 
 const dispatcherNav = [
@@ -60,6 +62,11 @@ const navByRole: Record<Role, { label: string; href: string }[]> = {
   dispatcher: dispatcherNav,
   billing:    billingNav,
   technician: techNav,
+  client:     [
+    { label: "Appointment", href: "/client" },
+    { label: "History",     href: "/client/history" },
+    { label: "Contact",     href: "/client/contact" },
+  ],
 };
 
 const healthConfig = {

@@ -19,12 +19,14 @@ const roleDashboard: Record<Role, string> = {
   dispatcher: "/dispatcher",
   technician: "/technician",
   billing:    "/billing",
+  client:     "/client",
 };
 
 const roleCredentialLabel: Record<Role, string> = {
   dispatcher: "Dispatch Authorization",
   technician: "Radiologic Technologist License",
   billing:    "Billing Manager Credential",
+  client:     "Patient ID",
 };
 
 export default function OnboardingPage() {
