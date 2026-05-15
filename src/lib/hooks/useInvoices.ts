@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, type DbInvoice } from "@/lib/supabase";
+import { supabase, supabaseConfigured, type DbInvoice } from "@/lib/supabase";
 import type { Invoice } from "@/components/domain/InvoiceRow";
+import { MOCK_INVOICES } from "@/lib/mock-data";
 
 function toInvoice(r: DbInvoice): Invoice {
   return {
@@ -29,17 +30,23 @@ export function useInvoices() {
   const [error, setError]       = useState<string | null>(null);
 
   const fetchInvoices = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setInvoices(MOCK_INVOICES as Invoice[]);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("invoices")
       .select("*")
       .order("created_at", { ascending: false });
+    setLoading(false);
     if (error) { setError(error.message); return; }
     setInvoices((data ?? []).map(toInvoice));
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchInvoices();
+    if (!supabaseConfigured) return;
 
     const channel = supabase
       .channel("invoices_realtime")
@@ -52,6 +59,7 @@ export function useInvoices() {
   }, [fetchInvoices]);
 
   const updateInvoiceStatus = async (id: string, status: Invoice["status"]) => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase.from("invoices").update({ status }).eq("id", id);
     if (error) setError(error.message);
   };

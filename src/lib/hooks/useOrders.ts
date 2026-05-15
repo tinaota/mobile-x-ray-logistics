@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, type DbOrder } from "@/lib/supabase";
+import { supabase, supabaseConfigured, type DbOrder } from "@/lib/supabase";
 import type { Order } from "@/lib/utils";
+import { MOCK_ORDERS } from "@/lib/mock-data";
 
 function toOrder(r: DbOrder): Order {
   return {
@@ -27,17 +28,23 @@ export function useOrders() {
   const [error, setError]     = useState<string | null>(null);
 
   const fetchOrders = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setOrders(MOCK_ORDERS);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("orders")
       .select("*")
       .order("scheduled_time");
+    setLoading(false);
     if (error) { setError(error.message); return; }
     setOrders((data ?? []).map(toOrder));
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchOrders();
+    if (!supabaseConfigured) return;
 
     const channel = supabase
       .channel("orders_realtime")
@@ -50,11 +57,13 @@ export function useOrders() {
   }, [fetchOrders]);
 
   const updateOrderStatus = async (id: string, status: Order["status"]) => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) setError(error.message);
   };
 
   const assignOrder = async (id: string, technicianId: string, assignedTech: string) => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase
       .from("orders")
       .update({ technician_id: technicianId, assigned_tech: assignedTech, status: "assigned" })

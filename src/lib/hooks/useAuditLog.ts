@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, type DbAuditLog } from "@/lib/supabase";
+import { supabase, supabaseConfigured, type DbAuditLog } from "@/lib/supabase";
+import { MOCK_AUDIT_LOG } from "@/lib/mock-data";
 
 export interface AuditRow {
   id: string;
@@ -27,17 +28,23 @@ export function useAuditLog() {
   const [error, setError]     = useState<string | null>(null);
 
   const fetchRows = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setRows(MOCK_AUDIT_LOG);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("audit_log")
       .select("*")
       .order("created_at", { ascending: false });
+    setLoading(false);
     if (error) { setError(error.message); return; }
     setRows((data ?? []).map(toAuditRow));
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchRows();
+    if (!supabaseConfigured) return;
 
     const channel = supabase
       .channel("audit_log_realtime")

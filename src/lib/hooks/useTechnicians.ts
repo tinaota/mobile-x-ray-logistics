@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, type DbTechnician } from "@/lib/supabase";
+import { supabase, supabaseConfigured, type DbTechnician } from "@/lib/supabase";
 import type { Technician } from "@/lib/utils";
+import { MOCK_TECHNICIANS } from "@/lib/mock-data";
 
 function toTechnician(r: DbTechnician): Technician {
   return {
@@ -27,17 +28,23 @@ export function useTechnicians() {
   const [error, setError]             = useState<string | null>(null);
 
   const fetchTechnicians = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setTechnicians(MOCK_TECHNICIANS);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("technicians")
       .select("*")
       .order("name");
+    setLoading(false);
     if (error) { setError(error.message); return; }
     setTechnicians((data ?? []).map(toTechnician));
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchTechnicians();
+    if (!supabaseConfigured) return;
 
     const channel = supabase
       .channel("technicians_realtime")

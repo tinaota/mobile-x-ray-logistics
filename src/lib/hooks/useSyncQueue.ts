@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { supabase, type DbSyncQueue } from "@/lib/supabase";
+import { supabase, supabaseConfigured, type DbSyncQueue } from "@/lib/supabase";
 import type { SyncStatus } from "@/lib/utils";
+import { MOCK_SYNC_QUEUE } from "@/lib/mock-data";
 
 export interface SyncRecord {
   id: string;
@@ -36,17 +37,23 @@ export function useSyncQueue() {
   const [error, setError]     = useState<string | null>(null);
 
   const fetchQueue = useCallback(async () => {
+    if (!supabaseConfigured) {
+      setRecords(MOCK_SYNC_QUEUE);
+      setLoading(false);
+      return;
+    }
     const { data, error } = await supabase
       .from("sync_queue")
       .select("*")
       .order("created_at");
+    setLoading(false);
     if (error) { setError(error.message); return; }
     setRecords((data ?? []).map(toSyncRecord));
-    setLoading(false);
   }, []);
 
   useEffect(() => {
     fetchQueue();
+    if (!supabaseConfigured) return;
 
     const channel = supabase
       .channel("sync_queue_realtime")
@@ -59,12 +66,14 @@ export function useSyncQueue() {
   }, [fetchQueue]);
 
   const markSynced = async (id: string) => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase
       .from("sync_queue").update({ sync_status: "synced" }).eq("id", id);
     if (error) setError(error.message);
   };
 
   const syncAll = async () => {
+    if (!supabaseConfigured) return;
     const { error } = await supabase
       .from("sync_queue").update({ sync_status: "synced" }).eq("sync_status", "pending");
     if (error) setError(error.message);
