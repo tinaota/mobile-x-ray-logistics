@@ -19,6 +19,11 @@ interface NavShellProps {
   className?: string;
 }
 
+async function handleLogout() {
+  await fetch("/api/auth/logout", { method: "POST" });
+  window.location.href = "/login";
+}
+
 export function NavShell({
   role, title, subtitle, syncStatus, notificationCount,
   userName = "Dispatcher", userInitials = "D",
@@ -35,6 +40,7 @@ export function NavShell({
         userName={userName}
         userInitials={userInitials}
         onNavigate={(href) => router.push(href)}
+        onLogout={handleLogout}
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <TopNav

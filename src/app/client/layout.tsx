@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { ClientShell } from "@/components/layout/ClientShell";
+import { useSession } from "@/lib/hooks/useSession";
 import type { ReactNode } from "react";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
@@ -12,14 +13,15 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 
 export default function ClientLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const meta = PAGE_META[pathname] ?? { title: "My X-Ray", subtitle: "" };
+  const session  = useSession();
+  const meta     = PAGE_META[pathname] ?? { title: "My X-Ray", subtitle: "" };
 
   return (
     <ClientShell
       title={meta.title}
       subtitle={meta.subtitle}
-      userName="Margaret Johnson"
-      userInitials="MJ"
+      userName={session?.name ?? "Margaret Johnson"}
+      userInitials={session?.initials ?? "MJ"}
     >
       {children}
     </ClientShell>

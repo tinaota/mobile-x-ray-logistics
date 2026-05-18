@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { CalendarCheck, History, Phone, Bell } from "lucide-react";
+import { CalendarCheck, History, Phone, Bell, LogOut } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -46,6 +46,16 @@ export function ClientShell({
             aria-label="Notifications"
           >
             <Bell className="h-4 w-4" />
+          </button>
+          <button
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/login";
+            }}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-emergency-red transition-colors"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
           </button>
           <Avatar initials={userInitials} size="sm" status="online" />
         </div>

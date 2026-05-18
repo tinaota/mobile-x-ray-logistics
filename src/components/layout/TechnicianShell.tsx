@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import {
   Map, ClipboardList, FileText, LayoutDashboard, Wrench,
-  Wifi, WifiOff, RefreshCw,
+  Wifi, WifiOff, RefreshCw, LogOut,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -71,6 +71,16 @@ export function TechnicianShell({
               {sync.icon}
               {sync.label}
             </Badge>
+          </button>
+          <button
+            onClick={async () => {
+              await fetch("/api/auth/logout", { method: "POST" });
+              window.location.href = "/login";
+            }}
+            className="h-9 w-9 rounded-lg flex items-center justify-center text-on-surface-variant hover:bg-surface-container hover:text-emergency-red transition-colors"
+            aria-label="Sign out"
+          >
+            <LogOut className="h-4 w-4" />
           </button>
           <Avatar initials={userInitials} size="sm" status="online" />
         </div>

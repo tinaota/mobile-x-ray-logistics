@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { NavShell } from "@/components/layout/NavShell";
+import { useSession } from "@/lib/hooks/useSession";
 import type { ReactNode } from "react";
 
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
@@ -15,7 +16,8 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
 
 export default function BillingLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-  const meta = PAGE_META[pathname] ?? { title: "Billing", subtitle: "" };
+  const session  = useSession();
+  const meta     = PAGE_META[pathname] ?? { title: "Billing", subtitle: "" };
 
   return (
     <NavShell
@@ -23,8 +25,8 @@ export default function BillingLayout({ children }: { children: ReactNode }) {
       title={meta.title}
       subtitle={meta.subtitle}
       syncStatus="synced"
-      userName="R. Chen"
-      userInitials="RC"
+      userName={session?.name ?? "R. Chen"}
+      userInitials={session?.initials ?? "RC"}
     >
       {children}
     </NavShell>
