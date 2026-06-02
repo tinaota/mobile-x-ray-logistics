@@ -1,13 +1,14 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { CalendarCheck, History, Phone, Bell, LogOut } from "lucide-react";
+import { CalendarCheck, History, Phone, Bell, LogOut, Sparkles } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 const CLIENT_NAV = [
   { label: "Appointment", icon: CalendarCheck, href: "/client"         },
+  { label: "Request",     icon: Sparkles,      href: "/client/request" },
   { label: "History",     icon: History,       href: "/client/history" },
   { label: "Contact",     icon: Phone,         href: "/client/contact" },
 ];
@@ -33,7 +34,7 @@ export function ClientShell({
 
       {/* ── Top bar ── */}
       <header className="sticky top-0 z-30 flex items-center gap-3 h-16 px-5
-        bg-surface-container-lowest/90 backdrop-blur border-b border-outline-variant/40 shrink-0">
+        bg-white/70 backdrop-blur-md border-b border-outline-variant/20 shadow-sm shrink-0">
         <div className="flex-1 min-w-0">
           <h1 className="text-base font-semibold text-on-surface truncate">{title}</h1>
           {subtitle && (
@@ -80,19 +81,19 @@ export function ClientShell({
                 onClick={() => router.push(href)}
                 className={cn(
                   "flex-1 flex flex-col items-center justify-center gap-1 py-3 min-h-[60px] transition-colors",
-                  isActive ? "text-rose-400" : "text-slate-gray hover:text-white"
+                  isActive ? "text-medical-blue" : "text-slate-gray hover:text-white"
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
                 <div className={cn(
                   "flex items-center justify-center w-9 h-6 rounded-xl transition-colors",
-                  isActive ? "bg-rose-500/20" : ""
+                  isActive ? "bg-medical-blue/15" : ""
                 )}>
                   <Icon className={cn("h-5 w-5 transition-transform", isActive && "scale-110")} />
                 </div>
                 <span className={cn(
                   "text-[9px] font-label font-semibold uppercase tracking-wider leading-none",
-                  isActive ? "text-rose-400" : "text-slate-gray"
+                  isActive ? "text-medical-blue" : "text-slate-gray"
                 )}>
                   {label}
                 </span>

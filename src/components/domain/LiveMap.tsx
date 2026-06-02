@@ -19,6 +19,7 @@ export interface LiveMapMarker {
   priority?: Priority;
   status?: string;
   details?: string;
+  color?: string;
 }
 
 export interface LiveMapProps {
@@ -67,12 +68,12 @@ export function LiveMap({
 
   return (
     <Card className={cn("overflow-hidden", className)}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-          Live Fleet Map
-        </CardTitle>
-        {showLegend && (
+      {showLegend && (
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
+            Live Fleet Map
+          </CardTitle>
           <div className="flex items-center gap-3">
             <Badge variant="stat" size="sm">STAT</Badge>
             <span className="flex items-center gap-1.5 text-xs text-on-surface-variant">
@@ -85,8 +86,8 @@ export function LiveMap({
               <span className="h-2.5 w-2.5 rounded-full bg-warning-amber inline-block" /> Urgent
             </span>
           </div>
-        )}
-      </CardHeader>
+        </CardHeader>
+      )}
 
       <CardContent className="p-0 relative">
         <div className={cn("w-full", height)}>

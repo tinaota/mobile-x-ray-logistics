@@ -5,6 +5,12 @@ import { supabase, supabaseConfigured, type DbTechnician } from "@/lib/supabase"
 import type { Technician } from "@/lib/utils";
 import { MOCK_TECHNICIANS } from "@/lib/mock-data";
 
+const TECH_FALLBACK_COORDS: Record<string, { lat: number; lng: number }> = {
+  "tech-001": { lat: 33.479213, lng: -112.063412 }, // T. Parker
+  "tech-002": { lat: 33.501415, lng: -112.018241 }, // M. Rivera
+  "tech-003": { lat: 33.434190, lng: -112.108412 }, // J. Thompson
+};
+
 function toTechnician(r: DbTechnician): Technician {
   return {
     id:               r.id,
@@ -19,6 +25,8 @@ function toTechnician(r: DbTechnician): Technician {
     lastSeen:         r.last_seen ?? undefined,
     credentialExpiry: r.credential_expiry ?? undefined,
     online:           r.online,
+    latitude:         r.latitude !== undefined && r.latitude !== null ? Number(r.latitude) : (TECH_FALLBACK_COORDS[r.id]?.lat ?? 33.479213),
+    longitude:        r.longitude !== undefined && r.longitude !== null ? Number(r.longitude) : (TECH_FALLBACK_COORDS[r.id]?.lng ?? -112.063412),
   };
 }
 

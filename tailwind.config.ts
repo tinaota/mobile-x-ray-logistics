@@ -15,14 +15,19 @@ const config: Config = {
         "warning-amber":   "#F59E0B",
         "ghost-white":     "#F8FAFC",
         "slate-gray":      "#475569",
+        "blue-tint":       "#eff5ff",
+        "green-ink":       "#14633a",
+        "green-tint":      "#effaf2",
+        "warning-amber-ink":  "#92560a",
+        "warning-amber-tint": "#fef6e7",
 
         surface: {
           DEFAULT:                 "#fcf8fa",
           dim:                     "#dcd9db",
-          bright:                  "#fcf8fa",
+          bright:                 "#fcf8fa",
           "container-lowest":      "#ffffff",
           "container-low":         "#f6f3f5",
-          container:               "#f0edef",
+          "container":             "#f0edef",
           "container-high":        "#eae7e9",
           "container-highest":     "#e4e2e4",
           variant:                 "#e4e2e4",
@@ -103,6 +108,10 @@ const config: Config = {
         lg:      "0.5rem",
         xl:      "0.75rem",
         full:    "9999px",
+        "proto-sm": "10px",
+        "proto-md": "14px",
+        "proto-lg": "20px",
+        "proto-xl": "26px",
       },
 
       spacing: {
@@ -118,6 +127,9 @@ const config: Config = {
         "card-md": "0 4px 8px rgba(0,0,0,0.10)",
         "card-lg": "0 8px 24px rgba(0,0,0,0.12)",
         sidebar:   "2px 0 8px rgba(15,23,42,0.15)",
+        "proto-card": "0 1px 2px rgba(15,23,42,.05), 0 4px 14px rgba(15,23,42,.05)",
+        "proto-pop":  "0 8px 30px rgba(15,23,42,.14)",
+        "proto-fab":  "0 10px 24px rgba(59,130,246,.38)",
       },
 
       gap: {

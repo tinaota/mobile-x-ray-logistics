@@ -29,6 +29,7 @@ export interface DbOrder {
   assigned_tech: string | null;
   technician_id: string | null;
   phone: string | null;
+  report_status: "pending" | "dictated" | "signed" | "delivered" | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +47,8 @@ export interface DbTechnician {
   last_seen: string | null;
   credential_expiry: string | null;
   online: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
   created_at: string;
 }
 

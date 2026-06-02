@@ -23,11 +23,14 @@ export async function POST(req: NextRequest) {
       process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     );
 
-    // Match the From number to an order so the message lands in the right thread
+    // Match the From number to an active order so the message lands in the right thread
     const { data: orders } = await supabase
       .from("orders")
       .select("id")
       .eq("phone", from)
+      .neq("status", "complete")
+      .neq("status", "billed")
+      .order("created_at", { ascending: false })
       .limit(1);
 
     const orderId = orders?.[0]?.id ?? null;

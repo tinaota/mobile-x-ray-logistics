@@ -23,6 +23,32 @@
   }
 }
 
+@layer components {
+  /* Premium iOS-style Card */
+  .proto-card {
+    @apply bg-white border border-outline-variant/40 rounded-proto-lg shadow-proto-card overflow-hidden;
+  }
+  
+  /* Redesign Button Primitives */
+  .proto-btn-primary {
+    @apply h-[50px] px-5 rounded-proto-md bg-medical-blue text-white font-semibold shadow-proto-fab transition duration-150 hover:bg-blue-600 active:scale-[0.985] flex items-center justify-center gap-2;
+  }
+  .proto-btn-outline {
+    @apply h-[50px] px-5 rounded-proto-md border border-outline bg-white text-on-surface font-semibold transition duration-150 hover:bg-slate-50 active:scale-[0.985] flex items-center justify-center gap-2;
+  }
+  
+  /* Semantic Chips & Badges */
+  .proto-chip-blue {
+    @apply bg-blue-tint text-medical-blue px-3 py-1.5 rounded-full text-xs font-semibold;
+  }
+  .proto-chip-green {
+    @apply bg-green-tint text-green-ink px-3 py-1.5 rounded-full text-xs font-semibold;
+  }
+  .proto-chip-amber {
+    @apply bg-warning-amber-tint text-warning-amber-ink px-3 py-1.5 rounded-full text-xs font-semibold;
+  }
+}
+
 /* ── Leaflet design-system overrides ── */
 .leaflet-container {
   background: #e8eaf0;
@@ -82,4 +108,27 @@
   0%   { box-shadow: 0 0 0 0   rgba(239,68,68,.8); }
   70%  { box-shadow: 0 0 0 10px rgba(239,68,68,0); }
   100% { box-shadow: 0 0 0 0   rgba(239,68,68,0); }
+}
+
+/* Make entire date input clickable while hiding browser default indicator */
+input[type="date"] {
+  position: relative;
+}
+input[type="date"]::-webkit-calendar-picker-indicator {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: auto;
+  height: auto;
+  color: transparent;
+  background: transparent;
+  cursor: pointer;
+  z-index: 10;
+}
+input[type="date"]::-webkit-inner-spin-button,
+input[type="date"]::-webkit-clear-button {
+  display: none;
+  -webkit-appearance: none;
 }

@@ -19,6 +19,8 @@ function toOrder(r: DbOrder): Order {
     distance:      r.distance ?? undefined,
     assignedTech:  r.assigned_tech ?? undefined,
     phone:         r.phone ?? undefined,
+    reportStatus:  r.report_status ?? undefined,
+    technicianId:  r.technician_id ?? undefined,
   };
 }
 

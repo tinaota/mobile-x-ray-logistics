@@ -25,6 +25,7 @@ export interface Order {
   assignedTech?: string;
   phone?: string;
   reportStatus?: "pending" | "dictated" | "signed" | "delivered";
+  technicianId?: string;
 }
 
 export interface Technician {
@@ -41,6 +42,8 @@ export interface Technician {
   credentialExpiry?: string;
   online: boolean;
   hourlyRate?: number;     // Fully-loaded hourly rate (USD)
+  latitude?: number;
+  longitude?: number;
 }
 
 export interface Invoice {

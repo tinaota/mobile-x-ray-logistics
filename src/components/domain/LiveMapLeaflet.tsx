@@ -19,6 +19,7 @@ const COLOR = {
 };
 
 function markerColor(m: LiveMapMarker) {
+  if (m.color)                 return m.color;
   if (m.type === "hub")        return COLOR.hub;
   if (m.type === "technician") return COLOR.technician;
   if (m.priority === "stat")   return COLOR.stat;

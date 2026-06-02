@@ -8,16 +8,24 @@ export default function ClientContactPage() {
   return (
     <div className="max-w-2xl mx-auto space-y-4">
 
-      {/* Care coordinator card */}
+      {/* Dispatcher card */}
       <Card>
         <CardContent className="py-5 space-y-4">
           <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">
-            Care Coordinator
+            Dispatcher
           </p>
+          <div className="flex items-center gap-3.5 mb-1">
+            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-500 to-blue-700 text-white font-label font-bold text-lg flex items-center justify-center shrink-0">
+              DS
+            </div>
+            <div>
+              <p className="text-base font-bold text-on-surface leading-tight">Dispatch Support</p>
+              <p className="text-xs text-on-surface-variant/85 mt-0.5">Your dedicated care team</p>
+            </div>
+          </div>
           <div>
-            <p className="text-xl font-semibold text-on-surface">We're here to help</p>
-            <p className="text-sm text-on-surface-variant mt-1">
-              Your care coordinator can answer questions about your appointment, when the technician will arrive, or your X-ray results.
+            <p className="text-sm text-on-surface-variant mt-1 leading-relaxed">
+              Your dispatcher can answer questions about your appointment, when the technician will arrive, or your X-ray results.
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-on-surface-variant">

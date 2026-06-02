@@ -29,3 +29,14 @@ Thumbs.db
 
 .vercel
 .env*.local
+
+# Build cache
+*.tsbuildinfo
+
+# Prototype extraction temp files
+extract_template.js
+template_extracted.html
+unpack.js
+unpacked_prototype/
+supabase/.temp/
+

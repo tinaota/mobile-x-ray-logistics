@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Map, ClipboardList, Users, FileText,
   DollarSign, Wrench, WifiOff, PlusCircle,
   Wallet, History, BarChart3, ShieldCheck,
-  CalendarCheck, Phone, LogOut,
+  CalendarCheck, Phone, LogOut, Sparkles,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -37,6 +37,7 @@ const navByRole: Record<Role, NavItem[]> = {
   ],
   client: [
     { label: "Appointment", icon: <CalendarCheck className="h-5 w-5" />, href: "/client" },
+    { label: "Request",     icon: <Sparkles className="h-5 w-5" />,      href: "/client/request" },
     { label: "History",     icon: <History className="h-5 w-5" />,       href: "/client/history" },
     { label: "Contact",     icon: <Phone className="h-5 w-5" />,         href: "/client/contact" },
   ],

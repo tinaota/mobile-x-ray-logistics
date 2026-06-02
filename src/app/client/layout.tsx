@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/client":         { title: "My Appointment",      subtitle: "Today's visit status"        },
   "/client/history": { title: "Appointment History", subtitle: "Past visits & results"       },
-  "/client/contact": { title: "Contact Us",          subtitle: "Reach your care coordinator" },
+  "/client/contact": { title: "Contact Us",          subtitle: "Reach your dispatcher" },
 };
 
 export default function ClientLayout({ children }: { children: ReactNode }) {

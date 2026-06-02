@@ -141,8 +141,9 @@ export default function DispatcherHub() {
       { id: "hub", lng: HUB_COORDS.lng, lat: HUB_COORDS.lat, type: "hub", label: "Dispatch HQ" },
     ];
     technicians.filter(t => t.online).forEach((t, i) => {
-      const c = TECH_COORDS[`default_${i}`] ?? HUB_COORDS;
-      markers.push({ id: t.id, lng: c.lng, lat: c.lat, type: "technician", label: t.name, status: t.syncStatus });
+      const lat = t.latitude ?? TECH_COORDS[`default_${i}`]?.lat ?? HUB_COORDS.lat;
+      const lng = t.longitude ?? TECH_COORDS[`default_${i}`]?.lng ?? HUB_COORDS.lng;
+      markers.push({ id: t.id, lng: lng, lat: lat, type: "technician", label: t.name, status: t.syncStatus });
     });
     orders.filter(o => o.status === "pending" || o.status === "assigned").slice(0, 4).forEach((o, i) => {
       const c = ORDER_COORDS[`default_${i}`] ?? HUB_COORDS;
