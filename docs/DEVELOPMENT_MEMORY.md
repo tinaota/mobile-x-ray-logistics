@@ -174,3 +174,9 @@ To enable zero-cost verification of the MVP without Twilio SMS carrier costs, we
 * **Patient Seeding**: Executed the automated seeding script [seed-user-and-orders.js](file:///C:/Users/tinao/.gemini/antigravity-ide/brain/4f9c447a-8b42-456e-9bed-a29c6d616670/scratch/seed-user-and-orders.js), programmatically registering the test patient user (`Margaret Johnson` / `+16025550100` / `123456`) in Supabase Auth, validating the trigger-based profile sync, and linking active order `ORD-002` to their ID.
 * **Compilation Integrity**: Verified that the entire project compiles with zero TypeScript errors or compiler warnings.
 
+### 6.5 Vercel Build Diagnostic & Resolution
+* **The Issue**: Vercel production deployments were crashing at build time with `Error: accountSid must start with AC` during Next.js static page collection for `/api/sms/send`. This was triggered because Next.js evaluates route modules at compile time, and the global Twilio client initialization crashed when environment variables were empty or set to placeholder strings like `"TODO"` or `"placeholder"`.
+* **The Fix**: Modified [twilio.ts](file:///c:/Users/tinao/.gemini/antigravity/scratch/mobile-x-Ray-logistics/src/lib/twilio.ts) to validate that `process.env.TWILIO_ACCOUNT_SID` actually starts with `"AC"` before attempting constructor instantiation. If the key is missing, empty, or set to a placeholder, it fails validation gracefully and instantiates the client as `null`. Route handlers check `twilioConfigured` dynamically at request time to prevent app crashes.
+* **Verification**: Initiated a Vercel build and confirmed that preview and production builds complete successfully. The application has been fully compiled and deployed to the live domain: **[mobile-x-ray-logistics.vercel.app](https://mobile-x-ray-logistics.vercel.app)**.
+
+
