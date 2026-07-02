@@ -7,9 +7,18 @@ export function cn(...inputs: ClassValue[]) {
 
 export type Role = "dispatcher" | "technician" | "billing" | "client";
 export type Priority = "stat" | "urgent" | "routine";
-export type OrderStatus = "pending" | "assigned" | "en-route" | "in-progress" | "complete" | "billed";
+// Canonical status set. The DB may still contain legacy "in_transit" rows;
+// normalizeOrderStatus() maps them at the fetch boundary so app code only
+// ever sees "in-transit".
+export type OrderStatus = "pending" | "assigned" | "en-route" | "in-progress" | "in-transit" | "complete" | "billed";
 export type SyncStatus = "synced" | "pending" | "conflict" | "offline";
 export type AuditStatus = "verified" | "flagged" | "pending";
+export type Modality = "radiology" | "laboratory";
+export type Discipline = "imaging" | "phlebotomy" | "dual";
+
+export function normalizeOrderStatus(status: string): OrderStatus {
+  return (status === "in_transit" ? "in-transit" : status) as OrderStatus;
+}
 
 export interface Order {
   id: string;
@@ -26,6 +35,20 @@ export interface Order {
   phone?: string;
   reportStatus?: "pending" | "dictated" | "signed" | "delivered";
   technicianId?: string;
+  modality?: Modality | null;
+  fastingRequired?: boolean;   // laboratory orders only
+  priorAuthNumber?: string;    // laboratory orders: payer authorization reference
+}
+
+export interface Specimen {
+  id: string;
+  orderId: string;
+  accessionNumber: string;
+  specimenType: string;        // e.g. "LAVENDER TOP", "SST"
+  collectedAt: string;
+  expiresAt: string;           // stability window boundary
+  deliveredAt?: string;
+  custodyTransferredTo?: string;
 }
 
 export interface Technician {
@@ -33,6 +56,7 @@ export interface Technician {
   name: string;
   initials: string;
   licenseNumber: string;   // Monospace display
+  discipline: Discipline;  // imaging tech, phlebotomist, or cross-trained
   zone: string;            // e.g. "North District"
   activeOrders: number;
   completedToday: number;
@@ -55,12 +79,14 @@ export interface Invoice {
   icd10Code: string;
   urgencyFactor: number;   // 1.0 | 1.5 | 2.0
   baseFee: number;
-  r0070Fee: number;        // Portable equipment surcharge
+  r0070Fee: number;        // Portable equipment surcharge (radiology only)
   mileageFee: number;
   totalAmount: number;
   status: OrderStatus;
   hasFlag?: boolean;
   flagReason?: string;
+  modality?: Modality;
+  labModifier?: string;    // e.g. "90" (reference lab) — laboratory claims only
 }
 
 export interface Facility {

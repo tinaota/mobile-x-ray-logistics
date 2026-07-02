@@ -7,9 +7,13 @@ import { Input } from "@/components/ui/Input";
 import { Select } from "@/components/ui/Select";
 import { Badge } from "@/components/ui/Badge";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/Tabs";
+import { LabPanelCombobox } from "@/components/domain/LabPanelCombobox";
 import { supabase } from "@/lib/supabase";
 import type { Facility } from "@/lib/utils";
-import { Building2, Phone, MapPin, Plus, Pencil, ClipboardList, CheckCircle2, AlertCircle } from "lucide-react";
+import { 
+  Building2, Phone, MapPin, Plus, Pencil, ClipboardList, 
+  CheckCircle2, AlertCircle, Zap, Droplet, RefreshCw
+} from "lucide-react";
 
 // ── Facility seed data ────────────────────────────────────────────────────────
 const FACILITIES: Facility[] = [
@@ -21,8 +25,8 @@ const FACILITIES: Facility[] = [
   { id: "F6", name: "Scottsdale Surgery Center", address: "312 N Scottsdale Rd, Scottsdale, AZ", phone: "(480) 555-0556", contactName: "Dr. A. Patel",       activeOrderCount: 0 },
 ];
 
-// ── CPT code catalog (common mobile X-ray procedures) ─────────────────────────
-const PROCEDURES = [
+// ── CPT code catalogs ─────────────────────────────────────────────────────────
+const RADIOLOGY_PROCEDURES = [
   { value: "71046", procedure: "Chest X-Ray 2-View",           label: "71046 — Chest X-Ray 2-View" },
   { value: "71010", procedure: "Chest X-Ray 1-View",           label: "71010 — Chest X-Ray 1-View" },
   { value: "73521", procedure: "Hip X-Ray 2-View",             label: "73521 — Hip X-Ray 2-View" },
@@ -30,6 +34,18 @@ const PROCEDURES = [
   { value: "73000", procedure: "Shoulder X-Ray 2-View",        label: "73000 — Shoulder X-Ray 2-View" },
   { value: "73600", procedure: "Ankle X-Ray 2-View",           label: "73600 — Ankle X-Ray 2-View" },
   { value: "73560", procedure: "Knee X-Ray 2-View",            label: "73560 — Knee X-Ray 2-View" },
+];
+
+const LABORATORY_PROCEDURES = [
+  { value: "85025", procedure: "CBC w/ Diff",                  label: "85025 — CBC w/ Diff" },
+  { value: "80053", procedure: "CMP / Blood Panel",            label: "80053 — CMP / Blood Panel" },
+  { value: "83605", procedure: "STAT: Lactic Acid",            label: "83605 — STAT: Lactic Acid" },
+  { value: "80061", procedure: "Lipid Panel",                  label: "80061 — Lipid Panel" },
+  { value: "81003", procedure: "Urinalysis",                   label: "81003 — Urinalysis" },
+  { value: "84443", procedure: "TSH Assay",                    label: "84443 — TSH Assay" },
+  { value: "83036", procedure: "Hemoglobin A1c",               label: "83036 — Hemoglobin A1c" },
+  { value: "85610", procedure: "Prothrombin Time (PT/INR)",    label: "85610 — Prothrombin Time (PT/INR)" },
+  { value: "80048", procedure: "Basic Metabolic Panel",        label: "80048 — Basic Metabolic Panel" },
 ];
 
 // ── Validation helpers ────────────────────────────────────────────────────────
@@ -54,11 +70,16 @@ interface OrderFormState {
   icd10Code: string;
   priority: string;
   scheduledTime: string;
+  modality: "radiology" | "laboratory" | "";
+  fastingRequired: boolean;
+  priorAuthNumber: string;
+  priorAuthVerified: boolean;
 }
 
 const EMPTY_FACILITY: FacilityFormState = { name: "", address: "", phone: "", contactName: "" };
 const EMPTY_ORDER: OrderFormState = {
-  facilityId: "", patientName: "", cptCode: "", icd10Code: "", priority: "routine", scheduledTime: "",
+  facilityId: "", patientName: "", cptCode: "", icd10Code: "", priority: "routine", scheduledTime: "", modality: "",
+  fastingRequired: false, priorAuthNumber: "", priorAuthVerified: false,
 };
 
 export default function IntakePage() {
@@ -86,23 +107,47 @@ export default function IntakePage() {
     setModalOpen(true);
   };
 
+  // Switch Track and Purge State
+  const handleSwitchModality = (mod: "radiology" | "laboratory") => {
+    setOrder({
+      ...EMPTY_ORDER,
+      facilityId: order.facilityId, // Preserve selected facility for convenience
+      patientName: order.patientName, // Preserve patient name
+      modality: mod,
+    });
+    setAttempted(false);
+  };
+
+  const activeProcedures = order.modality === "radiology" ? RADIOLOGY_PROCEDURES : LABORATORY_PROCEDURES;
+
   // Inline validation errors (only shown after first submit attempt)
+  const modalityError  = attempted && !order.modality ? "Service line is required" : undefined;
   const facilityError  = attempted && !order.facilityId ? "Facility is required" : undefined;
   const nameError      = attempted && !order.patientName.trim() ? "Patient name is required" : undefined;
   const cptError       = attempted && !order.cptCode ? "Procedure is required" : undefined;
   const icd10Error     = attempted ? (validateICD10(order.icd10Code) ?? undefined) : undefined;
   const priorityError  = attempted && !order.priority ? "Priority is required" : undefined;
+  // Prior-auth gate — laboratory dispatch is blocked until the payer
+  // authorization reference is captured and verified.
+  const isLabOrder     = order.modality === "laboratory";
+  const priorAuthError = attempted && isLabOrder && !order.priorAuthNumber.trim()
+    ? "Prior authorization number is required for laboratory dispatch"
+    : undefined;
+  const priorAuthVerifyError = attempted && isLabOrder && order.priorAuthNumber.trim() && !order.priorAuthVerified
+    ? "Confirm the authorization was verified with the payer"
+    : undefined;
 
-  const hasErrors = !!(facilityError || nameError || cptError || icd10Error || priorityError);
+  const hasErrors = !!(modalityError || facilityError || nameError || cptError || icd10Error || priorityError || priorAuthError || priorAuthVerifyError);
 
   const handleOrderSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setAttempted(true);
-    if (hasErrors || !order.facilityId || !order.patientName.trim() || !order.cptCode || validateICD10(order.icd10Code)) return;
+    if (hasErrors || !order.modality || !order.facilityId || !order.patientName.trim() || !order.cptCode || validateICD10(order.icd10Code)) return;
+    if (isLabOrder && (!order.priorAuthNumber.trim() || !order.priorAuthVerified)) return;
 
     setSubmitting(true);
     const selectedFacility = FACILITIES.find(f => f.id === order.facilityId);
-    const selectedProc     = PROCEDURES.find(p => p.value === order.cptCode);
+    const selectedProc     = activeProcedures.find(p => p.value === order.cptCode);
 
     const { error } = await supabase.from("orders").insert({
       patient_name:   order.patientName.trim(),
@@ -113,6 +158,9 @@ export default function IntakePage() {
       priority:       order.priority,
       status:         "pending",
       scheduled_time: order.scheduledTime || "TBD",
+      modality:       order.modality,
+      fasting_required:  isLabOrder ? order.fastingRequired : false,
+      prior_auth_number: isLabOrder ? order.priorAuthNumber.trim() : null,
     });
 
     setSubmitting(false);
@@ -238,105 +286,239 @@ export default function IntakePage() {
                 </div>
               )}
 
-              {/* Patient & Facility */}
-              <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
-                <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
-                  Patient & Facility
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Input
-                    label="Patient Name"
-                    value={order.patientName}
-                    onChange={e => setOrder(o => ({ ...o, patientName: e.target.value }))}
-                    placeholder="First Last"
-                    error={nameError}
-                  />
-                  <Select
-                    label="Facility"
-                    value={order.facilityId}
-                    onChange={e => setOrder(o => ({ ...o, facilityId: e.target.value }))}
-                    placeholder="Select facility…"
-                    options={FACILITIES.map(f => ({ value: f.id, label: f.name }))}
-                    error={facilityError}
-                  />
-                </div>
-              </div>
+              {/* Modality Twin Cards (Failsafe Inception) */}
+              {!order.modality ? (
+                <div className="space-y-4">
+                  <label className="font-mono text-xs font-bold uppercase tracking-wider text-on-surface-variant block">
+                    Select Service Line (Required)
+                  </label>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Radiology Card */}
+                    <div 
+                      onClick={() => handleSwitchModality("radiology")}
+                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-radiology-indigo active:scale-[0.99]"
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="bg-radiology-indigo text-white p-3 rounded-xl">
+                          <Zap className="h-6 w-6" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-headline-md text-headline-md font-bold mb-1">Mobile Radiology</h3>
+                        <p className="text-on-surface-variant text-xs leading-relaxed">
+                          Portable X-Ray, Ultrasound, or EKG studies at bedside.
+                        </p>
+                      </div>
+                    </div>
 
-              {/* Clinical */}
-              <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
-                <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
-                  Clinical
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Procedure / CPT Code"
-                    value={order.cptCode}
-                    onChange={e => setOrder(o => ({ ...o, cptCode: e.target.value }))}
-                    placeholder="Select procedure…"
-                    options={PROCEDURES.map(p => ({ value: p.value, label: p.label }))}
-                    error={cptError}
-                  />
-                  <Input
-                    label="ICD-10 Diagnosis Code"
-                    value={order.icd10Code}
-                    onChange={e => setOrder(o => ({ ...o, icd10Code: e.target.value.toUpperCase() }))}
-                    placeholder="e.g. J18.9"
-                    hint="Required for billing — format: A00.0"
-                    error={icd10Error}
-                  />
+                    {/* Laboratory Card */}
+                    <div 
+                      onClick={() => handleSwitchModality("laboratory")}
+                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-laboratory-rose active:scale-[0.99]"
+                    >
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="bg-laboratory-rose text-white p-3 rounded-xl">
+                          <Droplet className="h-6 w-6" />
+                        </div>
+                      </div>
+                      <div>
+                        <h3 className="font-headline-md text-headline-md font-bold mb-1">Mobile Laboratory</h3>
+                        <p className="text-on-surface-variant text-xs leading-relaxed">
+                          Phlebotomy draws and transport with specimen stability monitors.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {modalityError && <p className="text-xs text-emergency-red font-semibold">{modalityError}</p>}
                 </div>
-                {order.cptCode && !icd10Error && order.icd10Code && (
-                  <p className="text-xs text-green-600 flex items-center gap-1">
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    CPT {order.cptCode} + ICD-10 {order.icd10Code} validated
-                  </p>
-                )}
-              </div>
+              ) : (
+                <>
+                  {/* Track Active Header with Switch Track Option */}
+                  <div className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+                    order.modality === "radiology" 
+                      ? "bg-radiology-indigo/5 border-radiology-indigo/20 text-radiology-indigo"
+                      : "bg-laboratory-rose/5 border-laboratory-rose/20 text-laboratory-rose"
+                  }`}>
+                    <div className="flex items-center gap-3">
+                      {order.modality === "radiology" ? <Zap className="h-5 w-5" /> : <Droplet className="h-5 w-5" />}
+                      <span className="font-mono text-xs font-bold uppercase tracking-widest">
+                        {order.modality === "radiology" ? "Radiology Track Active" : "Laboratory Track Active"}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setOrder(o => ({ ...o, modality: "" }))}
+                      className="text-xs underline font-semibold hover:opacity-80 flex items-center gap-1"
+                    >
+                      <RefreshCw className="h-3 w-3" /> Change Track
+                    </button>
+                  </div>
 
-              {/* Dispatch */}
-              <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
-                <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
-                  Dispatch
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Select
-                    label="Priority"
-                    value={order.priority}
-                    onChange={e => setOrder(o => ({ ...o, priority: e.target.value }))}
-                    options={[
-                      { value: "stat",    label: "STAT — Immediate response" },
-                      { value: "urgent",  label: "Urgent — Within 2 hours" },
-                      { value: "routine", label: "Routine — Scheduled" },
-                    ]}
-                    error={priorityError}
-                  />
-                  <Input
-                    label="Scheduled Time"
-                    type="time"
-                    value={order.scheduledTime}
-                    onChange={e => setOrder(o => ({ ...o, scheduledTime: e.target.value }))}
-                    hint="Leave blank to assign ASAP"
-                  />
-                </div>
-              </div>
+                  {/* Patient & Facility */}
+                  <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
+                    <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+                      Patient & Facility
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Input
+                        label="Patient Name"
+                        value={order.patientName}
+                        onChange={e => setOrder(o => ({ ...o, patientName: e.target.value }))}
+                        placeholder="First Last"
+                        error={nameError}
+                      />
+                      <Select
+                        label="Facility"
+                        value={order.facilityId}
+                        onChange={e => setOrder(o => ({ ...o, facilityId: e.target.value }))}
+                        placeholder="Select facility…"
+                        options={FACILITIES.map(f => ({ value: f.id, label: f.name }))}
+                        error={facilityError}
+                      />
+                    </div>
+                  </div>
 
-              <div className="flex items-center justify-end gap-3">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => { setOrder(EMPTY_ORDER); setAttempted(false); setSubmitState("idle"); }}
-                >
-                  Clear
-                </Button>
-                <Button
-                  type="submit"
-                  variant={order.priority === "stat" ? "stat" : "primary"}
-                  loading={submitting}
-                >
-                  <ClipboardList className="h-4 w-4" />
-                  Create Order
-                </Button>
-              </div>
+                  {/* Clinical */}
+                  <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
+                    <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+                      Clinical Fields
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {isLabOrder ? (
+                        <div>
+                          <label className="block text-sm font-medium text-on-surface mb-1.5">Lab Panel / CPT Code</label>
+                          <LabPanelCombobox
+                            value={activeProcedures.find(p => p.value === order.cptCode)?.label ?? ""}
+                            onChange={label => {
+                              const proc = activeProcedures.find(p => p.label === label);
+                              setOrder(o => ({ ...o, cptCode: proc?.value ?? "" }));
+                            }}
+                            options={activeProcedures.map(p => p.label)}
+                            placeholder="Search lab panels (CBC, CMP, Lipid…)"
+                            inputClassName="h-11"
+                          />
+                          {cptError && <p className="text-xs text-emergency-red font-medium mt-1.5">{cptError}</p>}
+                        </div>
+                      ) : (
+                        <Select
+                          label="Procedure / CPT Code"
+                          value={order.cptCode}
+                          onChange={e => setOrder(o => ({ ...o, cptCode: e.target.value }))}
+                          placeholder="Select procedure…"
+                          options={activeProcedures.map(p => ({ value: p.value, label: p.label }))}
+                          error={cptError}
+                        />
+                      )}
+                      <Input
+                        label="ICD-10 Diagnosis Code"
+                        value={order.icd10Code}
+                        onChange={e => setOrder(o => ({ ...o, icd10Code: e.target.value.toUpperCase() }))}
+                        placeholder="e.g. J18.9"
+                        hint="Required for billing — format: A00.0"
+                        error={icd10Error}
+                      />
+                    </div>
+                    {order.cptCode && !icd10Error && order.icd10Code && (
+                      <p className="text-xs text-green-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        CPT {order.cptCode} + ICD-10 {order.icd10Code} validated
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Laboratory authorization & prep — lab track only */}
+                  {isLabOrder && (
+                    <div className="bg-white rounded-xl border border-laboratory-rose/30 shadow-card p-5 space-y-4">
+                      <p className="text-xs font-label font-semibold uppercase tracking-wider text-laboratory-rose flex items-center gap-1.5">
+                        <Droplet className="h-3.5 w-3.5" /> Laboratory Authorization & Prep
+                      </p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <Input
+                          label="Prior Authorization #"
+                          value={order.priorAuthNumber}
+                          onChange={e => setOrder(o => ({ ...o, priorAuthNumber: e.target.value.toUpperCase() }))}
+                          placeholder="e.g. PA-88231-AZ"
+                          hint="Payer authorization reference for this panel"
+                          error={priorAuthError}
+                        />
+                        <div className="space-y-3 pt-1">
+                          <label className="flex items-start gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={order.priorAuthVerified}
+                              onChange={e => setOrder(o => ({ ...o, priorAuthVerified: e.target.checked }))}
+                              className="mt-0.5 h-4 w-4 rounded border-outline-variant text-laboratory-rose focus:ring-laboratory-rose"
+                            />
+                            <span className="text-sm text-on-surface">
+                              Authorization verified with payer
+                              {priorAuthVerifyError && (
+                                <span className="block text-xs text-emergency-red font-medium mt-0.5">{priorAuthVerifyError}</span>
+                              )}
+                            </span>
+                          </label>
+                          <label className="flex items-start gap-2.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={order.fastingRequired}
+                              onChange={e => setOrder(o => ({ ...o, fastingRequired: e.target.checked }))}
+                              className="mt-0.5 h-4 w-4 rounded border-outline-variant text-laboratory-rose focus:ring-laboratory-rose"
+                            />
+                            <span className="text-sm text-on-surface">
+                              Fasting required
+                              <span className="block text-xs text-on-surface-variant mt-0.5">Patient NPO 8–12 hours before draw</span>
+                            </span>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Dispatch */}
+                  <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card p-5 space-y-4">
+                    <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+                      Dispatch
+                    </p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <Select
+                        label="Priority"
+                        value={order.priority}
+                        onChange={e => setOrder(o => ({ ...o, priority: e.target.value }))}
+                        options={[
+                          { value: "stat",    label: "STAT — Immediate response" },
+                          { value: "urgent",  label: "Urgent — Within 2 hours" },
+                          { value: "routine", label: "Routine — Scheduled" },
+                        ]}
+                        error={priorityError}
+                      />
+                      <Input
+                        label="Scheduled Time"
+                        type="time"
+                        value={order.scheduledTime}
+                        onChange={e => setOrder(o => ({ ...o, scheduledTime: e.target.value }))}
+                        hint="Leave blank to assign ASAP"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-3">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => { setOrder(EMPTY_ORDER); setAttempted(false); setSubmitState("idle"); }}
+                    >
+                      Clear
+                    </Button>
+                    <Button
+                      type="submit"
+                      variant={order.priority === "stat" ? "stat" : "primary"}
+                      loading={submitting}
+                    >
+                      <ClipboardList className="h-4 w-4" />
+                      Create Order
+                    </Button>
+                  </div>
+                </>
+              )}
             </div>
           </form>
         </TabsContent>

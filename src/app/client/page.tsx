@@ -31,6 +31,7 @@ const STATUS_TO_STEP: Record<OrderStatus, number> = {
   assigned:      1,
   "en-route":    2,
   "in-progress": 3,
+  "in-transit":  4,
   complete:      4,
   billed:        4,
 };

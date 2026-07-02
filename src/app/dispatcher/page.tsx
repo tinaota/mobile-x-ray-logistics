@@ -20,6 +20,7 @@ import { MapDensityCard } from "@/components/charts/MapDensityCard";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import { useMessages, useAllMessages } from "@/lib/hooks/useMessages";
+import { useServiceLine } from "@/lib/context/ServiceLineContext";
 import type { Order, Technician } from "@/lib/utils";
 import { cn } from "@/lib/utils";
 import {
@@ -81,8 +82,15 @@ type UnitFilter = "all" | "online" | "offline";
 
 // ─────────────────────────────────────────────────────────────────────────────
 export default function DispatcherHub() {
+  const { serviceLine } = useServiceLine();
   // ── Shared data ──────────────────────────────────────────────────────────
-  const { orders, loading: oLoading, assignOrder } = useOrders();
+  const { orders: rawOrders, loading: oLoading, assignOrder } = useOrders();
+  
+  const orders = useMemo(() => {
+    if (serviceLine === "all") return rawOrders;
+    return rawOrders.filter(o => o.modality === serviceLine);
+  }, [rawOrders, serviceLine]);
+
   const { technicians, loading: tLoading, error: techError } = useTechnicians();
   const { unreadByOrder, lastByOrder } = useAllMessages();
   const loading = oLoading || tLoading;
@@ -147,7 +155,7 @@ export default function DispatcherHub() {
     });
     orders.filter(o => o.status === "pending" || o.status === "assigned").slice(0, 4).forEach((o, i) => {
       const c = ORDER_COORDS[`default_${i}`] ?? HUB_COORDS;
-      markers.push({ id: o.id, lng: c.lng, lat: c.lat, type: "order", label: o.id, priority: o.priority, status: o.status });
+      markers.push({ id: o.id, lng: c.lng, lat: c.lat, type: "order", label: o.id, priority: o.priority, status: o.status, modality: o.modality });
     });
     return markers;
   }, [orders, technicians]);

@@ -17,6 +17,7 @@ function toTechnician(r: DbTechnician): Technician {
     name:             r.name,
     initials:         r.initials,
     licenseNumber:    r.license_number,
+    discipline:       r.discipline ?? "imaging",
     zone:             r.zone,
     activeOrders:     r.active_orders,
     completedToday:   r.completed_today,

@@ -23,13 +23,16 @@ export interface DbOrder {
   procedure: string;
   cpt_code: string;
   priority: "stat" | "urgent" | "routine";
-  status: "pending" | "assigned" | "en-route" | "in-progress" | "complete" | "billed";
+  status: "pending" | "assigned" | "en-route" | "in-progress" | "in_transit" | "in-transit" | "complete" | "billed";
   scheduled_time: string;
   distance: string | null;
   assigned_tech: string | null;
   technician_id: string | null;
   phone: string | null;
   report_status: "pending" | "dictated" | "signed" | "delivered" | null;
+  modality: "radiology" | "laboratory" | null;
+  fasting_required: boolean | null;
+  prior_auth_number: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -39,6 +42,7 @@ export interface DbTechnician {
   name: string;
   initials: string;
   license_number: string;
+  discipline: "imaging" | "phlebotomy" | "dual" | null;
   zone: string;
   active_orders: number;
   completed_today: number;
@@ -64,12 +68,29 @@ export interface DbInvoice {
   r0070_fee: number;
   mileage_fee: number;
   total_amount: number;
-  status: "pending" | "assigned" | "en-route" | "in-progress" | "complete" | "billed";
+  status: "pending" | "assigned" | "en-route" | "in-progress" | "in_transit" | "in-transit" | "complete" | "billed";
   has_flag: boolean;
   flag_reason: string | null;
   order_id: string | null;
+  modality: "radiology" | "laboratory" | null;
+  lab_modifier: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface DbSpecimen {
+  id: string;
+  order_id: string;
+  accession_number: string;
+  specimen_type: string;
+  collected_at: string;
+  expires_at: string;
+  delivered_at: string | null;
+  custody_transferred_to: string | null;
+  destination_lab: string | null;
+  storage_temp: string | null;
+  transit_notes: string | null;
+  created_at: string;
 }
 
 export interface DbAuditLog {

@@ -2,9 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import type { SyncStatus } from "@/lib/utils";
-import { Bell, Search, Wifi, WifiOff, RefreshCw } from "lucide-react";
+import { Bell, Search, Wifi, WifiOff, RefreshCw, Zap, Droplet } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 import { Avatar } from "@/components/ui/Avatar";
+import { useSyncQueue } from "@/lib/hooks/useSyncQueue";
+import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
+import { useServiceLine } from "@/lib/context/ServiceLineContext";
 
 interface TopNavProps {
   title: string;
@@ -28,7 +32,7 @@ const syncConfig: Record<SyncStatus, { icon: React.ReactNode; label: string; bad
 export function TopNav({
   title,
   subtitle,
-  syncStatus,
+  syncStatus: initialSyncStatus,
   notificationCount = 0,
   userName = "User",
   userInitials = "U",
@@ -36,7 +40,40 @@ export function TopNav({
   onNotifications,
   className,
 }: TopNavProps) {
-  const sync = syncStatus ? syncConfig[syncStatus] : null;
+  const { records } = useSyncQueue();
+  const [isOnline, setIsOnline] = useState(true);
+  const pathname = usePathname();
+
+  let serviceLineContext: any = null;
+  try {
+    serviceLineContext = useServiceLine();
+  } catch (e) {
+    // serviceLineContext remains null if outside of Provider
+  }
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      const goOnline = () => setIsOnline(true);
+      const goOffline = () => setIsOnline(false);
+      window.addEventListener("online", goOnline);
+      window.addEventListener("offline", goOffline);
+      return () => {
+        window.removeEventListener("online", goOnline);
+        window.removeEventListener("offline", goOffline);
+      };
+    }
+  }, []);
+
+  const pendingCount = records.filter(r => r.syncStatus === "pending").length;
+  const activeSyncStatus: SyncStatus = !isOnline 
+    ? "offline" 
+    : pendingCount > 0 
+      ? "pending" 
+      : "synced";
+
+  const sync = syncConfig[activeSyncStatus];
+  const isDispatcher = pathname?.startsWith("/dispatcher");
 
   return (
     <header
@@ -50,6 +87,45 @@ export function TopNav({
         <h1 className="text-base font-semibold text-on-surface truncate">{title}</h1>
         {subtitle && <p className="text-xs text-on-surface-variant truncate">{subtitle}</p>}
       </div>
+
+      {/* Segmented Control for Dispatcher */}
+      {isDispatcher && serviceLineContext && (
+        <div className="hidden lg:flex p-1 bg-surface-container-high rounded-full border border-outline-variant/40 items-center">
+          <button
+            onClick={() => serviceLineContext.setServiceLine("all")}
+            className={cn(
+              "px-4 py-1 rounded-full text-[10px] font-bold font-mono tracking-wider transition-all uppercase",
+              serviceLineContext.serviceLine === "all"
+                ? "bg-white text-primary shadow-sm"
+                : "text-on-surface-variant hover:text-primary"
+            )}
+          >
+            All Fleets
+          </button>
+          <button
+            onClick={() => serviceLineContext.setServiceLine("radiology")}
+            className={cn(
+              "px-4 py-1 rounded-full text-[10px] font-bold font-mono tracking-wider transition-all flex items-center gap-1 uppercase",
+              serviceLineContext.serviceLine === "radiology"
+                ? "bg-white text-radiology-indigo shadow-sm"
+                : "text-on-surface-variant hover:text-radiology-indigo"
+            )}
+          >
+            <Zap className="h-3 w-3" /> Radiology
+          </button>
+          <button
+            onClick={() => serviceLineContext.setServiceLine("laboratory")}
+            className={cn(
+              "px-4 py-1 rounded-full text-[10px] font-bold font-mono tracking-wider transition-all flex items-center gap-1 uppercase",
+              serviceLineContext.serviceLine === "laboratory"
+                ? "bg-white text-laboratory-rose shadow-sm"
+                : "text-on-surface-variant hover:text-laboratory-rose"
+            )}
+          >
+            <Droplet className="h-3 w-3" /> Laboratory
+          </button>
+        </div>
+      )}
 
       {/* Right actions */}
       <div className="flex items-center gap-2 shrink-0">

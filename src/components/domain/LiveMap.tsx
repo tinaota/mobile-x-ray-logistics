@@ -20,6 +20,7 @@ export interface LiveMapMarker {
   status?: string;
   details?: string;
   color?: string;
+  modality?: "radiology" | "laboratory" | string | null;
 }
 
 export interface LiveMapProps {

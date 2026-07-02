@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { LabPanelCombobox } from "@/components/domain/LabPanelCombobox";
 import { supabase } from "@/lib/supabase";
 import { useSession } from "@/lib/hooks/useSession";
 import { cn } from "@/lib/utils";
 import {
-  User, MapPin, Stethoscope, Calendar,
-  Lock, FileText, ChevronLeft, CheckCircle2, Info,
+  User, MapPin, Stethoscope, Calendar, Droplet, Zap,
+  Lock, FileText, ChevronLeft, CheckCircle2, Info, RefreshCw
 } from "lucide-react";
 
-const PROCEDURES = [
+const RADIOLOGY_PROCEDURES = [
   "Chest X-Ray 2-View (71046)",
   "Chest X-Ray 1-View (71045)",
   "Hip X-Ray (73521)",
@@ -22,13 +23,20 @@ const PROCEDURES = [
   "Extremity — Upper (73090)",
   "Extremity — Lower (73600)",
   "Abdomen X-Ray (74018)",
-  "Other — describe in notes",
+  "Other Radiology — describe in notes",
 ];
 
-const TIME_SLOTS = [
-  { label: "Morning",   sub: "8:00 AM – 12:00 PM" },
-  { label: "Afternoon", sub: "12:00 PM – 4:00 PM"  },
-  { label: "Evening",   sub: "4:00 PM – 7:00 PM"   },
+const LABORATORY_PROCEDURES = [
+  "CBC w/ Diff (85025)",
+  "CMP / Blood Panel (80053)",
+  "STAT: Lactic Acid (83605)",
+  "Lipid Panel (80061)",
+  "Urinalysis (81003)",
+  "TSH Assay (84443)",
+  "Hemoglobin A1c (83036)",
+  "Prothrombin Time (PT/INR) (85610)",
+  "Basic Metabolic Panel (80048)",
+  "Other Lab Panel — describe in notes",
 ];
 
 const inputCls = cn(
@@ -52,6 +60,8 @@ export default function RequestAppointmentPage() {
     timeSlot:     "",
     accessNotes:  "",
     specialNotes: "",
+    modality:     "" as "radiology" | "laboratory" | "",
+    fastingRequired: false,
   });
 
   const [loading,   setLoading]   = useState(false);
@@ -59,6 +69,16 @@ export default function RequestAppointmentPage() {
   const [error,     setError]     = useState<string | null>(null);
 
   const set = (k: keyof typeof form, v: string) => setForm(f => ({ ...f, [k]: v }));
+
+  // Switch modality and purge fields
+  const handleSwitchModality = (mod: "radiology" | "laboratory") => {
+    setForm(f => ({
+      ...f,
+      procedure: "",          // Clear modality-specific procedures
+      fastingRequired: false, // Lab-only flag never leaks across tracks
+      modality: mod,
+    }));
+  };
 
   // Address validation helper state & listener
   const [addressWarning, setAddressWarning] = useState<string | null>(null);
@@ -80,7 +100,7 @@ export default function RequestAppointmentPage() {
     }
   }, [form.address]);
 
-  // Preferred Dateoptions generator (7 days rolling)
+  // Preferred Date options generator (7 days rolling)
   const [dateOptions, setDateOptions] = useState<{ value: string; dayName: string; dayNum: string; monthName: string }[]>([]);
   useEffect(() => {
     const options = [];
@@ -97,7 +117,8 @@ export default function RequestAppointmentPage() {
     setDateOptions(options);
   }, []);
 
-  const canSubmit = form.address && form.procedure && form.date && form.timeSlot && form.dob;
+  const procedures = form.modality === "radiology" ? RADIOLOGY_PROCEDURES : LABORATORY_PROCEDURES;
+  const canSubmit = form.address && form.procedure && form.date && form.timeSlot && form.dob && form.modality;
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
@@ -122,6 +143,8 @@ export default function RequestAppointmentPage() {
         status: "pending",
         scheduled_time: `${form.date} (${form.timeSlot})`,
         report_status: "pending",
+        modality: form.modality,
+        fasting_required: form.modality === "laboratory" ? form.fastingRequired : false,
       });
 
       if (orderErr) throw new Error(orderErr.message);
@@ -169,14 +192,14 @@ export default function RequestAppointmentPage() {
             <div>
               <p className="text-xl font-bold text-on-surface">Request Submitted</p>
               <p className="text-sm text-on-surface-variant mt-2 max-w-xs leading-relaxed">
-                Your dispatcher will review your request and confirm your appointment. You&apos;ll be notified when a technician is assigned.
+                Your request has been sent. You&apos;ll be notified when a technician is assigned.
               </p>
             </div>
             <div className="flex flex-col gap-2 w-full max-w-xs mt-4">
               <Button variant="primary" size="lg" className="w-full h-12 rounded-proto-md shadow-proto-fab hover:bg-blue-600 transition-all duration-150" onClick={() => router.push("/client")}>
                 Back to Dashboard
               </Button>
-              <Button variant="ghost" size="lg" className="w-full h-12 rounded-proto-md transition-colors" onClick={() => { setSubmitted(false); setForm({ dob: "", address: "", unit: "", procedure: "", date: "", timeSlot: "", accessNotes: "", specialNotes: "" }); }}>
+              <Button variant="ghost" size="lg" className="w-full h-12 rounded-proto-md transition-colors" onClick={() => { setSubmitted(false); setForm({ dob: "", address: "", unit: "", procedure: "", date: "", timeSlot: "", accessNotes: "", specialNotes: "", modality: "", fastingRequired: false }); }}>
                 Submit Another Request
               </Button>
             </div>
@@ -211,219 +234,317 @@ export default function RequestAppointmentPage() {
         </p>
       </div>
 
-      {/* Patient Details */}
-      <div className="space-y-1.5">
-        <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
-          Patient
-        </p>
-        <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
-          <CardContent className="py-5 space-y-4">
-            <div>
-              <label className={labelCls}>Patient Name</label>
-              <input
-                type="text"
-                readOnly
-                value={patientName}
-                className={cn(inputCls, "bg-slate-100/60 text-on-surface-variant/85 cursor-not-allowed border-none shadow-none")}
-              />
-            </div>
-
-            <div>
-              <label className={labelCls}>Date of Birth</label>
-              <input
-                type="date"
-                value={form.dob}
-                onChange={e => set("dob", e.target.value)}
-                className={inputCls}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Location */}
-      <div className="space-y-1.5">
-        <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
-          Where should we come?
-        </p>
-        <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
-          <CardContent className="py-5 space-y-4">
-            <div>
-              <label className={labelCls}>Street Address</label>
-              <input
-                type="text"
-                value={form.address}
-                onChange={e => set("address", e.target.value)}
-                placeholder="123 Main St, Phoenix, AZ 85001"
-                className={inputCls}
-              />
-              {addressWarning && (
-                <p className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
-                  ⚠️ {addressWarning}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
-              <input
-                type="text"
-                value={form.unit}
-                onChange={e => set("unit", e.target.value)}
-                placeholder="e.g. Unit 4B, Floor 3, Room 214"
-                className={inputCls}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* What do you need? */}
-      <div className="space-y-1.5">
-        <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
-          What do you need?
-        </p>
-        <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
-          <CardContent className="py-5 space-y-5">
-            <div>
-              <label className={labelCls}>Procedure Type</label>
-              <div className="relative">
-                <select
-                  value={form.procedure}
-                  onChange={e => set("procedure", e.target.value)}
-                  className={cn(inputCls, "appearance-none pr-8 cursor-pointer")}
-                >
-                  <option value="">Select a procedure…</option>
-                  {PROCEDURES.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center">
-                  <svg className="h-4 w-4 text-on-surface-variant" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
-                  </svg>
-                </div>
+      {/* Modality selector twin cards (Failsafe Inception) */}
+      {!form.modality ? (
+        <div className="space-y-3">
+          <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant pl-1">
+            Choose Service Type
+          </p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Radiology Card */}
+            <div
+              onClick={() => handleSwitchModality("radiology")}
+              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-radiology-indigo transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px]"
+            >
+              <div className="bg-radiology-indigo/10 text-radiology-indigo p-2.5 rounded-lg w-fit">
+                <Zap className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-on-surface mt-4">Bedside Radiology</h4>
+                <p className="text-xs text-on-surface-variant mt-1 leading-normal">X-Ray, Ultrasound, or EKG diagnostics</p>
               </div>
             </div>
 
-            <div>
-              <label className={labelCls}>Preferred Date</label>
-              <div className="relative">
-                <input
-                  type="date"
-                  value={form.date}
-                  onChange={e => set("date", e.target.value)}
-                  className={cn(inputCls, "pr-10")}
-                />
-                <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">
-                  <Calendar className="h-4.5 w-4.5" />
-                </div>
+            {/* Laboratory Card */}
+            <div
+              onClick={() => handleSwitchModality("laboratory")}
+              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-laboratory-rose transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px]"
+            >
+              <div className="bg-laboratory-rose/10 text-laboratory-rose p-2.5 rounded-lg w-fit">
+                <Droplet className="h-6 w-6" />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-on-surface mt-4">Mobile Phlebotomy</h4>
+                <p className="text-xs text-on-surface-variant mt-1 leading-normal">Blood draws, processing, & lab deliveries</p>
               </div>
             </div>
+          </div>
+        </div>
+      ) : (
+        <>
+          {/* Active Track Banner */}
+          <div className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
+            form.modality === "radiology" 
+              ? "bg-radiology-indigo/5 border-radiology-indigo/20 text-radiology-indigo"
+              : "bg-laboratory-rose/5 border-laboratory-rose/20 text-laboratory-rose"
+          }`}>
+            <div className="flex items-center gap-2">
+              {form.modality === "radiology" ? <Zap className="h-4.5 w-4.5" /> : <Droplet className="h-4.5 w-4.5" />}
+              <span className="font-mono text-xs font-bold uppercase tracking-widest">
+                {form.modality === "radiology" ? "Radiology Services" : "Laboratory / Blood Services"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setForm(f => ({ ...f, modality: "" }))}
+              className="text-xs underline font-semibold hover:opacity-85 flex items-center gap-1"
+            >
+              <RefreshCw className="h-3 w-3" /> Change Service
+            </button>
+          </div>
 
-            <div>
-              <label className={labelCls}>Preferred Time</label>
-              <div className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md">
-                {[
-                  { label: "Morning",   sub: "7a-12p" },
-                  { label: "Afternoon", sub: "12p-5p" },
-                  { label: "Evening",   sub: "5p-7p" },
-                ].map(slot => {
-                  const isSelected = form.timeSlot === slot.label;
-                  return (
+          {/* Patient Details */}
+          <div className="space-y-1.5">
+            <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
+              Patient
+            </p>
+            <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+              <CardContent className="py-5 space-y-4">
+                <div>
+                  <label className={labelCls}>Patient Name</label>
+                  <input
+                    type="text"
+                    readOnly
+                    value={patientName}
+                    className={cn(inputCls, "bg-slate-100/60 text-on-surface-variant/85 cursor-not-allowed border-none shadow-none")}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Date of Birth</label>
+                  <input
+                    type="date"
+                    value={form.dob}
+                    onChange={e => set("dob", e.target.value)}
+                    className={inputCls}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Location */}
+          <div className="space-y-1.5">
+            <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
+              Where should we come?
+            </p>
+            <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+              <CardContent className="py-5 space-y-4">
+                <div>
+                  <label className={labelCls}>Street Address</label>
+                  <input
+                    type="text"
+                    value={form.address}
+                    onChange={e => set("address", e.target.value)}
+                    placeholder="123 Main St, Phoenix, AZ 85001"
+                    className={inputCls}
+                  />
+                  {addressWarning && (
+                    <p className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
+                      ⚠️ {addressWarning}
+                    </p>
+                  )}
+                </div>
+
+                <div>
+                  <label className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
+                  <input
+                    type="text"
+                    value={form.unit}
+                    onChange={e => set("unit", e.target.value)}
+                    placeholder="e.g. Unit 4B, Floor 3, Room 214"
+                    className={inputCls}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* What do you need? */}
+          <div className="space-y-1.5">
+            <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
+              Appointment Schedule & Details
+            </p>
+            <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+              <CardContent className="py-5 space-y-5">
+                <div>
+                  <label className={labelCls}>Requested Study / Panel</label>
+                  {form.modality === "laboratory" ? (
+                    <LabPanelCombobox
+                      value={form.procedure}
+                      onChange={v => set("procedure", v)}
+                      options={LABORATORY_PROCEDURES}
+                      placeholder="Search lab panels (CBC, CMP, Lipid…)"
+                      inputClassName="rounded-proto-md"
+                    />
+                  ) : (
+                    <div className="relative">
+                      <select
+                        value={form.procedure}
+                        onChange={e => set("procedure", e.target.value)}
+                        className={cn(inputCls, "appearance-none pr-8 cursor-pointer")}
+                      >
+                        <option value="">Select a procedure…</option>
+                        {procedures.map(p => (
+                          <option key={p} value={p}>{p}</option>
+                        ))}
+                      </select>
+                      <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center">
+                        <svg className="h-4 w-4 text-on-surface-variant" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M5.22 8.22a.75.75 0 011.06 0L10 11.94l3.72-3.72a.75.75 0 111.06 1.06l-4.25 4.25a.75.75 0 01-1.06 0L5.22 9.28a.75.75 0 010-1.06z" clipRule="evenodd" />
+                        </svg>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Fasting toggle — laboratory track only */}
+                {form.modality === "laboratory" && (
+                  <div className="flex items-center justify-between bg-laboratory-rose/5 border border-laboratory-rose/20 rounded-proto-md px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-on-surface">Fasting Required</p>
+                      <p className="text-[11px] text-on-surface-variant mt-0.5">
+                        Patient must not eat or drink (except water) for 8–12 hours before the draw
+                      </p>
+                    </div>
                     <button
-                      key={slot.label}
                       type="button"
-                      onClick={() => set("timeSlot", slot.label)}
+                      role="switch"
+                      aria-checked={form.fastingRequired}
+                      onClick={() => setForm(f => ({ ...f, fastingRequired: !f.fastingRequired }))}
                       className={cn(
-                        "flex flex-col items-center justify-center py-2 px-1 rounded-proto-sm transition-all duration-150",
-                        isSelected
-                          ? "bg-white text-medical-blue shadow-sm font-semibold"
-                          : "text-on-surface-variant hover:text-on-surface"
+                        "relative h-7 w-12 rounded-full transition-colors shrink-0",
+                        form.fastingRequired ? "bg-laboratory-rose" : "bg-outline-variant/60"
                       )}
                     >
-                      <span className="text-sm">{slot.label}</span>
-                      <span className={cn("text-[10.5px] font-medium mt-0.5", isSelected ? "text-medical-blue/80" : "text-on-surface-variant/70")}>
-                        {slot.sub}
-                      </span>
+                      <span className={cn(
+                        "absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-all",
+                        form.fastingRequired ? "left-[22px]" : "left-0.5"
+                      )} />
                     </button>
-                  );
-                })}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+                  </div>
+                )}
 
-      {/* Access & Notes */}
-      <div className="space-y-1.5">
-        <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
-          Help us find you
-        </p>
-        <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
-          <CardContent className="py-5 space-y-4">
-            <div>
-              <label className={labelCls}>Access Instructions</label>
-              <textarea
-                value={form.accessNotes}
-                onChange={e => set("accessNotes", e.target.value)}
-                placeholder="Gate code, parking instructions, elevator location…"
-                rows={2}
-                className={cn(inputCls, "h-auto py-2.5 resize-none")}
-              />
-            </div>
+                <div>
+                  <label className={labelCls}>Preferred Date</label>
+                  <div className="relative">
+                    <input
+                      type="date"
+                      value={form.date}
+                      onChange={e => set("date", e.target.value)}
+                      className={cn(inputCls, "pr-10")}
+                    />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">
+                      <Calendar className="h-4.5 w-4.5" />
+                    </div>
+                  </div>
+                </div>
 
-            <div>
-              <label className={labelCls}>Special Notes for Technician</label>
-              <textarea
-                value={form.specialNotes}
-                onChange={e => set("specialNotes", e.target.value)}
-                placeholder="Anything the technician should know before arriving…"
-                rows={2}
-                className={cn(inputCls, "h-auto py-2.5 resize-none")}
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* What happens next */}
-      <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/30 bg-slate-50 overflow-hidden">
-        <CardContent className="py-4 space-y-2">
-          <div className="flex items-center gap-2">
-            <FileText className="h-4 w-4 text-on-surface-variant shrink-0" />
-            <p className="text-xs font-semibold text-on-surface-variant">What happens after you submit</p>
+                <div>
+                  <label className={labelCls}>Preferred Time</label>
+                  <div className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md">
+                    {[
+                      { label: "Morning",   sub: "7a-12p" },
+                      { label: "Afternoon", sub: "12p-5p" },
+                      { label: "Evening",   sub: "5p-7p" },
+                    ].map(slot => {
+                      const isSelected = form.timeSlot === slot.label;
+                      return (
+                        <button
+                          key={slot.label}
+                          type="button"
+                          onClick={() => set("timeSlot", slot.label)}
+                          className={cn(
+                            "flex flex-col items-center justify-center py-2 px-1 rounded-proto-sm transition-all duration-150",
+                            isSelected
+                              ? "bg-white text-medical-blue shadow-sm font-semibold"
+                              : "text-on-surface-variant hover:text-on-surface"
+                          )}
+                        >
+                          <span className="text-sm">{slot.label}</span>
+                          <span className={cn("text-[10.5px] font-medium mt-0.5", isSelected ? "text-medical-blue/80" : "text-on-surface-variant/70")}>
+                            {slot.sub}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          {[
-            "A dispatcher reviews your request",
-            "A technician is assigned and you receive confirmation",
-            "You can track your technician in real time on this app",
-          ].map((step, i) => (
-            <div key={step} className="flex items-start gap-2 text-xs text-on-surface-variant pl-6">
-              <span className="font-mono font-bold text-medical-blue shrink-0">{i + 1}.</span>
-              {step}
+
+          {/* Access & Notes */}
+          <div className="space-y-1.5">
+            <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant/80 pl-1">
+              Help us find you
+            </p>
+            <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+              <CardContent className="py-5 space-y-4">
+                <div>
+                  <label className={labelCls}>Access Instructions</label>
+                  <textarea
+                    value={form.accessNotes}
+                    onChange={e => set("accessNotes", e.target.value)}
+                    placeholder="Gate code, parking instructions, elevator location…"
+                    rows={2}
+                    className={cn(inputCls, "h-auto py-2.5 resize-none")}
+                  />
+                </div>
+
+                <div>
+                  <label className={labelCls}>Special Notes for Technician</label>
+                  <textarea
+                    value={form.specialNotes}
+                    onChange={e => set("specialNotes", e.target.value)}
+                    placeholder="Anything the technician should know before arriving…"
+                    rows={2}
+                    className={cn(inputCls, "h-auto py-2.5 resize-none")}
+                  />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* What happens next */}
+          <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/30 bg-slate-50 overflow-hidden">
+            <CardContent className="py-4 space-y-2">
+              <div className="flex items-center gap-2">
+                <FileText className="h-4 w-4 text-on-surface-variant shrink-0" />
+                <p className="text-xs font-semibold text-on-surface-variant">What happens after you submit</p>
+              </div>
+              {[
+                "A dispatcher reviews your request",
+                "A technician is assigned and you receive confirmation",
+                "You can track your technician in real time on this app",
+              ].map((step, i) => (
+                <div key={step} className="flex items-start gap-2 text-xs text-on-surface-variant pl-6">
+                  <span className="font-mono font-bold text-medical-blue shrink-0">{i + 1}.</span>
+                  {step}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          {error && (
+            <div className="text-sm text-emergency-red bg-emergency-red/10 border border-emergency-red/20 rounded-proto-sm px-4 py-3">
+              {error}
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          )}
 
-      {error && (
-        <div className="text-sm text-emergency-red bg-emergency-red/10 border border-emergency-red/20 rounded-proto-sm px-4 py-3">
-          {error}
-        </div>
+          {/* Submit */}
+          <Button
+            variant="primary"
+            size="lg"
+            className="w-full h-12 rounded-proto-md shadow-proto-fab hover:bg-blue-600 transition-all duration-150 mt-2"
+            disabled={!canSubmit || loading}
+            loading={loading}
+            onClick={handleSubmit}
+          >
+            Submit Request
+          </Button>
+        </>
       )}
-
-      {/* Submit */}
-      <Button
-        variant="primary"
-        size="lg"
-        className="w-full h-12 rounded-proto-md shadow-proto-fab hover:bg-blue-600 transition-all duration-150 mt-2"
-        disabled={!canSubmit || loading}
-        loading={loading}
-        onClick={handleSubmit}
-      >
-        Submit Request
-      </Button>
 
       <p className="text-center text-xs text-on-surface-variant pb-2">
         Need help? Call <span className="text-medical-blue font-semibold">(602) 555-0100</span>

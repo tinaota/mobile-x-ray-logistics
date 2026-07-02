@@ -3,23 +3,8 @@ import { Card, CardContent } from "@/components/ui/Card";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
 import { SyncStatusBadge } from "@/components/ui/StatusBadge";
-import type { SyncStatus } from "@/lib/utils";
-import { MapPin, Battery, Wifi } from "lucide-react";
-
-export interface Technician {
-  id: string;
-  name: string;
-  initials: string;
-  licenseNumber: string;
-  zone: string;
-  activeOrders: number;
-  completedToday: number;
-  syncStatus: SyncStatus;
-  batteryLevel?: number;
-  lastSeen?: string;
-  credentialExpiry?: string;
-  online: boolean;
-}
+import type { Technician } from "@/lib/utils";
+import { MapPin, Battery, Wifi, Zap, Droplet } from "lucide-react";
 
 interface TechnicianCardProps {
   tech: Technician;
@@ -50,7 +35,20 @@ export function TechnicianCard({ tech, onSelect, className }: TechnicianCardProp
               <p className="text-sm font-semibold text-on-surface">{tech.name}</p>
               <p className="text-xs code-mono text-on-surface-variant">{tech.licenseNumber}</p>
             </div>
-            <SyncStatusBadge status={tech.syncStatus} />
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className={cn(
+                "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded font-mono text-[9px] font-bold uppercase tracking-wider border",
+                tech.discipline === "phlebotomy"
+                  ? "bg-laboratory-rose/10 text-laboratory-rose border-laboratory-rose/20"
+                  : tech.discipline === "dual"
+                    ? "bg-surface-container-high text-on-surface-variant border-outline-variant/40"
+                    : "bg-radiology-indigo/10 text-radiology-indigo border-radiology-indigo/20"
+              )}>
+                {tech.discipline === "phlebotomy" ? <Droplet className="h-2.5 w-2.5" /> : <Zap className="h-2.5 w-2.5" />}
+                {tech.discipline}
+              </span>
+              <SyncStatusBadge status={tech.syncStatus} />
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-on-surface-variant">

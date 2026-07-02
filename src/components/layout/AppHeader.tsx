@@ -2,14 +2,13 @@
 
 import { cn } from "@/lib/utils";
 import type { Role, SyncStatus } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Bell, AlertTriangle, CircleUser, Menu, X,
-  Wifi, WifiOff, RefreshCw, Search,
-  LayoutDashboard, Map, ClipboardList, Users,
-  FileText, DollarSign, Wrench, WifiOff as WifiOffIcon,
+  Wifi, WifiOff, RefreshCw,
 } from "lucide-react";
 import { SyncStatusBadge } from "@/components/ui/StatusBadge";
+import { useSyncQueue } from "@/lib/hooks/useSyncQueue";
 
 interface AppHeaderProps {
   role: Role;
@@ -78,7 +77,7 @@ const healthConfig = {
 export function AppHeader({
   role,
   activeHref,
-  syncStatus,
+  syncStatus: initialSyncStatus,
   notificationCount = 0,
   hasAlert,
   systemHealth = "optimal",
@@ -87,6 +86,39 @@ export function AppHeader({
   const [mobileOpen, setMobileOpen] = useState(false);
   const nav = navByRole[role];
   const health = healthConfig[systemHealth];
+
+  // Dynamic Sync state binding
+  const { records } = useSyncQueue();
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      const goOnline = () => setIsOnline(true);
+      const goOffline = () => setIsOnline(false);
+      window.addEventListener("online", goOnline);
+      window.addEventListener("offline", goOffline);
+      return () => {
+        window.removeEventListener("online", goOnline);
+        window.removeEventListener("offline", goOffline);
+      };
+    }
+  }, []);
+
+  const pendingCount = records.filter(r => r.syncStatus === "pending").length;
+  let syncLabel = "Online · Synced";
+  let syncDotColor = "bg-laboratory-emerald";
+  let syncBgColor = "bg-laboratory-emerald/10 text-laboratory-emerald border-laboratory-emerald/20";
+  
+  if (!isOnline) {
+    syncLabel = "Offline · Caching Locally";
+    syncDotColor = "bg-error";
+    syncBgColor = "bg-error/10 text-error border-error/20";
+  } else if (pendingCount > 0) {
+    syncLabel = "Syncing...";
+    syncDotColor = "bg-warning-amber";
+    syncBgColor = "bg-warning-amber/10 text-warning-amber border-warning-amber/20 animate-pulse";
+  }
 
   return (
     <>
@@ -137,22 +169,13 @@ export function AppHeader({
             </nav>
           </div>
 
-          {/* Right: system health + actions */}
+          {/* Right: sync health + actions */}
           <div className="flex items-center gap-2 shrink-0">
-            {/* System health pill — hidden on mobile */}
-            <div className="hidden sm:flex items-center gap-2 bg-primary-container px-3 py-1.5 rounded-full border border-white/10">
-              <span className={cn("h-2 w-2 rounded-full shrink-0", health.dot)} />
-              <span className="text-[10px] font-label font-semibold uppercase tracking-wider text-white">
-                {health.label}
-              </span>
+            {/* Dynamic Sync Status Badge */}
+            <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-[10px] font-bold font-mono tracking-wider", syncBgColor)}>
+              <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", syncDotColor, syncLabel === "Syncing..." && "animate-pulse")} />
+              <span className="uppercase font-semibold">{syncLabel}</span>
             </div>
-
-            {/* Sync status — tablet only */}
-            {syncStatus && (
-              <div className="hidden md:flex lg:hidden">
-                <SyncStatusBadge status={syncStatus} />
-              </div>
-            )}
 
             {/* Notifications */}
             <button

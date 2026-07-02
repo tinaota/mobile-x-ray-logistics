@@ -1,34 +1,22 @@
 import { cn } from "@/lib/utils";
-import type { OrderStatus, Priority } from "@/lib/utils";
+import type { Order, Specimen } from "@/lib/utils";
 import { Card, CardContent, CardFooter } from "@/components/ui/Card";
 import { PriorityBadge, OrderStatusBadge } from "@/components/ui/StatusBadge";
+import { SpecimenStabilityBadge } from "@/components/domain/SpecimenStabilityBadge";
 import { Button } from "@/components/ui/Button";
-import { MapPin, Clock, User, Phone } from "lucide-react";
-
-export interface Order {
-  id: string;
-  patientName: string;
-  facilityName: string;
-  address: string;
-  procedure: string;
-  cptCode: string;
-  priority: Priority;
-  status: OrderStatus;
-  scheduledTime: string;
-  distance?: string;
-  assignedTech?: string;
-  phone?: string;
-}
+import { MapPin, Clock, User, Phone, Droplet, Zap } from "lucide-react";
 
 interface OrderCardProps {
   order: Order;
+  /** Chain-of-custody record — renders a live stability countdown when present. */
+  specimen?: Specimen;
   onAssign?: (order: Order) => void;
   onView?: (order: Order) => void;
   compact?: boolean;
   className?: string;
 }
 
-export function OrderCard({ order, onAssign, onView, compact, className }: OrderCardProps) {
+export function OrderCard({ order, specimen, onAssign, onView, compact, className }: OrderCardProps) {
   return (
     <Card
       className={cn(
@@ -45,9 +33,20 @@ export function OrderCard({ order, onAssign, onView, compact, className }: Order
             <p className="text-sm font-semibold text-on-surface truncate">{order.patientName}</p>
             <p className="text-xs text-on-surface-variant truncate">{order.facilityName}</p>
           </div>
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+            {order.modality === "laboratory" && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-laboratory-rose/10 text-laboratory-rose font-mono text-[9px] font-bold uppercase tracking-wider border border-laboratory-rose/20">
+                <Droplet className="h-2.5 w-2.5" /> Lab
+              </span>
+            )}
+            {order.modality === "radiology" && (
+              <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-radiology-indigo/10 text-radiology-indigo font-mono text-[9px] font-bold uppercase tracking-wider border border-radiology-indigo/20">
+                <Zap className="h-2.5 w-2.5" /> Rad
+              </span>
+            )}
             <PriorityBadge priority={order.priority} animate size="sm" />
             <OrderStatusBadge status={order.status} size="sm" />
+            {specimen && <SpecimenStabilityBadge specimen={specimen} />}
           </div>
         </div>
 

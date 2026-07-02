@@ -18,22 +18,26 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dispatcher/reports":      { title: "Analytics & Reports",  subtitle: "Operational performance"         },
 };
 
+import { ServiceLineProvider } from "@/lib/context/ServiceLineContext";
+
 export default function DispatcherLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const session  = useSession();
   const meta     = PAGE_META[pathname] ?? { title: "Dispatcher", subtitle: "" };
 
   return (
-    <NavShell
-      role="dispatcher"
-      title={meta.title}
-      subtitle={meta.subtitle}
-      syncStatus="synced"
-      notificationCount={3}
-      userName={session?.name ?? "Alex Rivera"}
-      userInitials={session?.initials ?? "AR"}
-    >
-      {children}
-    </NavShell>
+    <ServiceLineProvider>
+      <NavShell
+        role="dispatcher"
+        title={meta.title}
+        subtitle={meta.subtitle}
+        syncStatus="synced"
+        notificationCount={3}
+        userName={session?.name ?? "Alex Rivera"}
+        userInitials={session?.initials ?? "AR"}
+      >
+        {children}
+      </NavShell>
+    </ServiceLineProvider>
   );
 }

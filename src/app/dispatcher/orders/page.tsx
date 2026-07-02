@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { OrderCard } from "@/components/domain/OrderCard";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
@@ -9,8 +9,19 @@ import { Badge } from "@/components/ui/Badge";
 import { PriorityBadge, OrderStatusBadge } from "@/components/ui/StatusBadge";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
-import type { Order, Priority, OrderStatus } from "@/lib/utils";
-import { Search, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { useSpecimens } from "@/lib/hooks/useSpecimens";
+import { useServiceLine } from "@/lib/context/ServiceLineContext";
+import type { Order, Priority, OrderStatus, Technician } from "@/lib/utils";
+import { Search, SlidersHorizontal, RefreshCw, Droplet, Zap } from "lucide-react";
+
+/** A technician is eligible when their discipline covers the order's service line. */
+function isEligible(tech: Technician, order: Order | null): boolean {
+  if (!order?.modality) return true;
+  if (tech.discipline === "dual") return true;
+  return order.modality === "laboratory"
+    ? tech.discipline === "phlebotomy"
+    : tech.discipline === "imaging";
+}
 
 type PriorityFilter = "all" | Priority;
 type StatusFilter   = "all" | OrderStatus;
@@ -23,8 +34,16 @@ const PRIORITY_TABS: { label: string; value: PriorityFilter }[] = [
 ];
 
 export default function OrdersPage() {
-  const { orders, loading, error, assignOrder } = useOrders();
+  const { serviceLine } = useServiceLine();
+  const { orders: rawOrders, loading, error, assignOrder } = useOrders();
+
+  const orders = useMemo(() => {
+    if (serviceLine === "all") return rawOrders;
+    return rawOrders.filter(o => o.modality === serviceLine);
+  }, [rawOrders, serviceLine]);
+
   const { technicians } = useTechnicians();
+  const { byOrderId: specimensByOrder } = useSpecimens();
 
   const [priorityFilter, setPriorityFilter] = useState<PriorityFilter>("all");
   const [statusFilter,   setStatusFilter]   = useState<StatusFilter>("all");
@@ -83,6 +102,7 @@ export default function OrdersPage() {
             <option value="assigned">Assigned</option>
             <option value="en-route">En Route</option>
             <option value="in-progress">In Progress</option>
+            <option value="in-transit">In Transit</option>
             <option value="complete">Complete</option>
           </select>
         </div>
@@ -131,6 +151,7 @@ export default function OrdersPage() {
             <OrderCard
               key={order.id}
               order={order}
+              specimen={order.modality === "laboratory" ? specimensByOrder.get(order.id) : undefined}
               onAssign={order.status === "pending" ? () => setAssignTarget(order) : undefined}
               className={order.priority === "stat" ? "border-l-4 border-emergency-red" : order.priority === "urgent" ? "border-l-4 border-warning-amber" : "border-l-4 border-medical-blue"}
             />
@@ -150,9 +171,14 @@ export default function OrdersPage() {
           <div className="flex items-center gap-2 mb-4">
             <PriorityBadge priority={assignTarget?.priority ?? "routine"} />
             <OrderStatusBadge status="pending" />
+            {assignTarget?.modality === "laboratory" && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-laboratory-rose">
+                <Droplet className="h-3 w-3" /> Phlebotomy-certified staff only
+              </span>
+            )}
           </div>
 
-          {technicians.map(tech => (
+          {technicians.filter(t => isEligible(t, assignTarget)).map(tech => (
             <button
               key={tech.id}
               onClick={() => setSelectedTech(tech.id)}
@@ -165,9 +191,25 @@ export default function OrdersPage() {
                 <p className="text-sm font-semibold text-on-surface">{tech.name}</p>
                 <p className="text-xs text-on-surface-variant">{tech.zone} · {tech.activeOrders} active</p>
               </div>
+              <span className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                tech.discipline === "phlebotomy"
+                  ? "bg-laboratory-rose/10 text-laboratory-rose border-laboratory-rose/20"
+                  : tech.discipline === "dual"
+                    ? "bg-surface-container text-on-surface-variant border-outline-variant/40"
+                    : "bg-radiology-indigo/10 text-radiology-indigo border-radiology-indigo/20"
+              }`}>
+                {tech.discipline === "phlebotomy" ? <Droplet className="h-2.5 w-2.5" /> : <Zap className="h-2.5 w-2.5" />}
+                {tech.discipline}
+              </span>
               <span className="text-xs font-mono text-on-surface-variant shrink-0">{tech.batteryLevel}%</span>
             </button>
           ))}
+
+          {technicians.filter(t => isEligible(t, assignTarget)).length === 0 && (
+            <p className="text-xs text-on-surface-variant text-center py-4">
+              No eligible field staff for this service line.
+            </p>
+          )}
 
           <div className="flex justify-end gap-2 pt-3">
             <Button variant="outline" onClick={() => setAssignTarget(null)}>Cancel</Button>

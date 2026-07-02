@@ -8,21 +8,36 @@ import { Avatar } from "@/components/ui/Avatar";
 import { SyncStatusBadge, OrderStatusBadge } from "@/components/ui/StatusBadge";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import type { Technician } from "@/lib/utils";
-import { Battery, MapPin, ShieldCheck, Clock, RefreshCw } from "lucide-react";
+import { Battery, MapPin, ShieldCheck, Clock, RefreshCw, Zap, Droplet } from "lucide-react";
 
 type Filter = "all" | "online" | "offline";
+type FleetTab = "all" | "imaging" | "phlebotomy";
+
+const FLEET_TABS: { label: string; value: FleetTab; icon?: typeof Zap }[] = [
+  { label: "All Fleets",     value: "all"                       },
+  { label: "Imaging Techs",  value: "imaging",    icon: Zap     },
+  { label: "Phlebotomists",  value: "phlebotomy", icon: Droplet },
+];
+
+/** Dual-discipline staff appear in both fleet views. */
+function inFleet(tech: Technician, tab: FleetTab): boolean {
+  if (tab === "all") return true;
+  return tech.discipline === tab || tech.discipline === "dual";
+}
 
 export default function FleetPage() {
   const { technicians, loading, error } = useTechnicians();
   const [filter,   setFilter]   = useState<Filter>("all");
+  const [fleetTab, setFleetTab] = useState<FleetTab>("all");
   const [selected, setSelected] = useState<Technician | null>(null);
 
-  const filtered = technicians.filter(t =>
+  const inTab = technicians.filter(t => inFleet(t, fleetTab));
+  const filtered = inTab.filter(t =>
     filter === "all" ? true : filter === "online" ? t.online : !t.online
   );
 
-  const onlineCount  = technicians.filter(t => t.online).length;
-  const offlineCount = technicians.length - onlineCount;
+  const onlineCount  = inTab.filter(t => t.online).length;
+  const offlineCount = inTab.length - onlineCount;
 
   if (error) return (
     <div className="flex items-center justify-center h-40 text-emergency-red text-sm">
@@ -32,6 +47,33 @@ export default function FleetPage() {
 
   return (
     <div className="space-y-5">
+
+      {/* Fleet segmentation — sticky master control */}
+      <div className="sticky top-0 z-20 -mx-1 px-1 py-2 bg-ghost-white/95 backdrop-blur">
+        <div className="flex items-center gap-1 bg-surface-container rounded-xl p-1 w-fit">
+          {FLEET_TABS.map(({ label, value, icon: Icon }) => (
+            <button
+              key={value}
+              onClick={() => setFleetTab(value)}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-label font-semibold uppercase tracking-wider transition-all ${
+                fleetTab === value
+                  ? value === "phlebotomy"
+                    ? "bg-white text-laboratory-rose shadow-card"
+                    : value === "imaging"
+                      ? "bg-white text-radiology-indigo shadow-card"
+                      : "bg-white text-on-surface shadow-card"
+                  : "text-on-surface-variant hover:text-on-surface"
+              }`}
+            >
+              {Icon && <Icon className="h-3.5 w-3.5" />}
+              {label}
+              <Badge variant="default" size="sm">
+                {technicians.filter(t => inFleet(t, value)).length}
+              </Badge>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Stats row */}
       <div className="flex items-center gap-4 flex-wrap">
@@ -103,6 +145,16 @@ export default function FleetPage() {
                     {selected.online ? "Online" : "Offline"}
                   </Badge>
                   <SyncStatusBadge status={selected.syncStatus} />
+                  <span className={`inline-flex items-center gap-1 text-[9px] font-mono font-bold uppercase tracking-wider px-1.5 py-0.5 rounded border ${
+                    selected.discipline === "phlebotomy"
+                      ? "bg-laboratory-rose/10 text-laboratory-rose border-laboratory-rose/20"
+                      : selected.discipline === "dual"
+                        ? "bg-surface-container-high text-on-surface-variant border-outline-variant/40"
+                        : "bg-radiology-indigo/10 text-radiology-indigo border-radiology-indigo/20"
+                  }`}>
+                    {selected.discipline === "phlebotomy" ? <Droplet className="h-2.5 w-2.5" /> : <Zap className="h-2.5 w-2.5" />}
+                    {selected.discipline}
+                  </span>
                 </div>
                 <p className="text-xs font-mono text-on-surface-variant mt-1">{selected.licenseNumber}</p>
               </div>

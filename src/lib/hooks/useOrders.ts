@@ -2,25 +2,29 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured, type DbOrder } from "@/lib/supabase";
-import type { Order } from "@/lib/utils";
+import { normalizeOrderStatus, type Order } from "@/lib/utils";
 import { MOCK_ORDERS } from "@/lib/mock-data";
+import { submitWrite } from "@/lib/offline-queue";
 
 function toOrder(r: DbOrder): Order {
   return {
-    id:            r.id,
-    patientName:   r.patient_name,
-    facilityName:  r.facility_name,
-    address:       r.address,
-    procedure:     r.procedure,
-    cptCode:       r.cpt_code,
-    priority:      r.priority,
-    status:        r.status,
-    scheduledTime: r.scheduled_time,
-    distance:      r.distance ?? undefined,
-    assignedTech:  r.assigned_tech ?? undefined,
-    phone:         r.phone ?? undefined,
-    reportStatus:  r.report_status ?? undefined,
-    technicianId:  r.technician_id ?? undefined,
+    id:              r.id,
+    patientName:     r.patient_name,
+    facilityName:    r.facility_name,
+    address:         r.address,
+    procedure:       r.procedure,
+    cptCode:         r.cpt_code,
+    priority:        r.priority,
+    status:          normalizeOrderStatus(r.status),
+    scheduledTime:   r.scheduled_time,
+    distance:        r.distance ?? undefined,
+    assignedTech:    r.assigned_tech ?? undefined,
+    phone:           r.phone ?? undefined,
+    reportStatus:    r.report_status ?? undefined,
+    technicianId:    r.technician_id ?? undefined,
+    modality:        r.modality ?? undefined,
+    fastingRequired: r.fasting_required ?? undefined,
+    priorAuthNumber: r.prior_auth_number ?? undefined,
   };
 }
 
@@ -59,7 +63,19 @@ export function useOrders() {
   }, [fetchOrders]);
 
   const updateOrderStatus = async (id: string, status: Order["status"]) => {
-    if (!supabaseConfigured) return;
+    if (!supabaseConfigured) {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      return;
+    }
+
+    // Offline-first: apply optimistically and buffer the write locally.
+    // flushWrites() replays it (in order) when connectivity returns.
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, status } : o));
+      await submitWrite({ kind: "order_status", orderId: id, status });
+      return;
+    }
+
     const { error } = await supabase.from("orders").update({ status }).eq("id", id);
     if (error) { setError(error.message); return; }
 

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { InvoiceRow } from "@/components/domain/InvoiceRow";
-import type { Invoice } from "@/components/domain/InvoiceRow";
 import { Modal } from "@/components/ui/Modal";
 import { Badge } from "@/components/ui/Badge";
 import { OrderStatusBadge } from "@/components/ui/StatusBadge";
@@ -10,6 +9,7 @@ import { CPTCodeBadge, ICD10Badge } from "@/components/domain/CPTCodeBadge";
 import { Select } from "@/components/ui/Select";
 import { Input } from "@/components/ui/Input";
 import { useInvoices } from "@/lib/hooks/useInvoices";
+import type { Invoice } from "@/lib/utils";
 import { AlertCircle, Search, RefreshCw } from "lucide-react";
 
 const STATUS_OPTIONS = [
@@ -19,22 +19,31 @@ const STATUS_OPTIONS = [
   { value: "assigned", label: "Assigned" },
 ];
 
+const MODALITY_OPTIONS = [
+  { value: "",           label: "All Services" },
+  { value: "radiology",  label: "Radiology" },
+  { value: "laboratory", label: "Laboratory" },
+];
+
 export default function InvoicesPage() {
   const { invoices, loading, error } = useInvoices();
 
-  const [selected,      setSelected]      = useState<Invoice | null>(null);
-  const [statusFilter,  setStatusFilter]  = useState("");
-  const [search,        setSearch]        = useState("");
+  const [selected,       setSelected]       = useState<Invoice | null>(null);
+  const [statusFilter,   setStatusFilter]   = useState("");
+  const [modalityFilter, setModalityFilter] = useState("");
+  const [search,         setSearch]         = useState("");
 
   const filtered = invoices.filter(inv => {
     const matchStatus = !statusFilter || inv.status === statusFilter;
+    // Invoices without an explicit modality are legacy radiology claims
+    const matchModality = !modalityFilter || (inv.modality ?? "radiology") === modalityFilter;
     const q = search.toLowerCase();
     const matchSearch = !q
       || inv.patientName.toLowerCase().includes(q)
       || inv.facilityName.toLowerCase().includes(q)
       || inv.cptCode.includes(q)
       || inv.id.toLowerCase().includes(q);
-    return matchStatus && matchSearch;
+    return matchStatus && matchModality && matchSearch;
   });
 
   const flaggedCount = invoices.filter(i => i.hasFlag).length;
@@ -74,6 +83,14 @@ export default function InvoicesPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             leadingIcon={<Search className="h-4 w-4" />}
+          />
+        </div>
+        <div className="w-44">
+          <Select
+            label=""
+            value={modalityFilter}
+            onChange={e => setModalityFilter(e.target.value)}
+            options={MODALITY_OPTIONS}
           />
         </div>
         <div className="w-44">
@@ -172,7 +189,9 @@ export default function InvoicesPage() {
               <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant mb-3">Fee Breakdown</p>
               {[
                 ["Base Fee",                   selected.baseFee],
-                ["R0070 (Portable Surcharge)", selected.r0070Fee],
+                ...(selected.modality === "laboratory"
+                  ? [[`Lab Modifier -${selected.labModifier ?? "90"} (Reference Lab)`, 0] as [string, number]]
+                  : [["R0070 (Portable Surcharge)", selected.r0070Fee] as [string, number]]),
                 ["Mileage Fee",                selected.mileageFee],
               ].map(([label, amount]) => (
                 <div key={label as string} className="flex justify-between text-sm">

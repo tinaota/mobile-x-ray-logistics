@@ -9,7 +9,7 @@ import { useOrders } from "@/lib/hooks/useOrders";
 import type { Order } from "@/lib/utils";
 import { ClipboardList, CheckCircle, Clock, AlertCircle, RefreshCw } from "lucide-react";
 
-const STATUS_ORDER = ["in-progress", "assigned", "pending", "en-route", "complete"] as const;
+const STATUS_ORDER = ["in-progress", "in-transit", "assigned", "en-route", "pending", "complete"] as const;
 
 function sortManifest(orders: Order[]): Order[] {
   return [...orders].sort((a, b) => {
@@ -21,14 +21,16 @@ function sortManifest(orders: Order[]): Order[] {
 }
 
 export default function ManifestPage() {
-  const { orders, loading, error } = useOrders();
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const { orders, loading, error, updateOrderStatus } = useOrders();
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
 
   const manifest = orders.filter(o => o.assignedTech === "T. Parker");
   const sorted = sortManifest(manifest);
 
+  const selectedOrder = orders.find(o => o.id === selectedOrderId) || null;
+
   const completed  = manifest.filter(o => o.status === "complete").length;
-  const inProgress = manifest.filter(o => o.status === "in-progress").length;
+  const inProgress = manifest.filter(o => o.status === "in-progress" || o.status === "in-transit").length;
   const remaining  = manifest.filter(o => o.status === "assigned" || o.status === "pending").length;
 
   if (error) return (
@@ -69,9 +71,10 @@ export default function ManifestPage() {
             key={order.id}
             order={order}
             compact
-            onView={() => setSelectedOrder(order)}
+            onView={() => setSelectedOrderId(order.id)}
             className={
               order.status === "in-progress"  ? "ring-2 ring-medical-blue/40 border-l-4 border-medical-blue"
+              : order.status === "in-transit" ? "ring-2 ring-laboratory-rose/40 border-l-4 border-laboratory-rose"
               : order.status === "complete"   ? "opacity-60 border-l-4 border-green-400"
               : order.priority === "stat"     ? "border-l-4 border-emergency-red"
               : order.priority === "urgent"   ? "border-l-4 border-warning-amber"
@@ -98,7 +101,8 @@ export default function ManifestPage() {
 
       <OrderDetailSheet
         order={selectedOrder}
-        onClose={() => setSelectedOrder(null)}
+        onClose={() => setSelectedOrderId(null)}
+        onUpdateStatus={updateOrderStatus}
       />
     </div>
   );

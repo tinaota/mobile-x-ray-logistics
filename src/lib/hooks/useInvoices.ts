@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { supabase, supabaseConfigured, type DbInvoice } from "@/lib/supabase";
-import type { Invoice } from "@/components/domain/InvoiceRow";
+import { normalizeOrderStatus, type Invoice } from "@/lib/utils";
 import { MOCK_INVOICES } from "@/lib/mock-data";
 
 function toInvoice(r: DbInvoice): Invoice {
@@ -18,9 +18,11 @@ function toInvoice(r: DbInvoice): Invoice {
     r0070Fee:      r.r0070_fee,
     mileageFee:    r.mileage_fee,
     totalAmount:   r.total_amount,
-    status:        r.status,
+    status:        normalizeOrderStatus(r.status),
     hasFlag:       r.has_flag,
     flagReason:    r.flag_reason ?? undefined,
+    modality:      r.modality ?? undefined,
+    labModifier:   r.lab_modifier ?? undefined,
   };
 }
 

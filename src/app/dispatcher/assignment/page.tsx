@@ -8,8 +8,17 @@ import { Modal } from "@/components/ui/Modal";
 import { PriorityBadge, OrderStatusBadge, SyncStatusBadge } from "@/components/ui/StatusBadge";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
-import type { Order } from "@/lib/utils";
-import { CheckCircle, RefreshCw, UserPlus, Zap } from "lucide-react";
+import type { Order, Technician } from "@/lib/utils";
+import { CheckCircle, RefreshCw, UserPlus, Zap, Droplet } from "lucide-react";
+
+/** A technician is eligible when their discipline covers the order's service line. */
+function isEligible(tech: Technician, order: Order | null): boolean {
+  if (!order?.modality) return true;
+  if (tech.discipline === "dual") return true;
+  return order.modality === "laboratory"
+    ? tech.discipline === "phlebotomy"
+    : tech.discipline === "imaging";
+}
 
 export default function AssignmentPage() {
   const { orders, loading, assignOrder }      = useOrders();
@@ -157,9 +166,14 @@ export default function AssignmentPage() {
           <div className="flex items-center gap-2 mb-4">
             <PriorityBadge priority={target?.priority ?? "routine"} />
             <Badge variant="default" size="sm">{target?.scheduledTime}</Badge>
+            {target?.modality === "laboratory" && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-laboratory-rose">
+                <Droplet className="h-3 w-3" /> Phlebotomy-certified staff only
+              </span>
+            )}
           </div>
 
-          {technicians.filter(t => t.online).map(tech => (
+          {technicians.filter(t => t.online && isEligible(t, target)).map(tech => (
             <button
               key={tech.id}
               onClick={() => setSelectedTech(tech.id)}

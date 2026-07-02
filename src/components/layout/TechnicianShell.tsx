@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/Badge";
 import { cn } from "@/lib/utils";
 import type { SyncStatus } from "@/lib/utils";
 import type { ReactNode } from "react";
+import { useSyncQueue } from "@/lib/hooks/useSyncQueue";
+import { useOfflineWrites } from "@/lib/hooks/useOfflineWrites";
+import { useState, useEffect } from "react";
 
 const TECH_NAV = [
   { label: "Field View", icon: Map,             href: "/technician"           },
@@ -41,13 +44,39 @@ interface TechnicianShellProps {
 
 export function TechnicianShell({
   title, subtitle,
-  syncStatus = "synced",
+  syncStatus: initialSyncStatus,
   userName = "Technician", userInitials = "T",
   children,
 }: TechnicianShellProps) {
   const router   = useRouter();
   const pathname = usePathname();
-  const sync     = SYNC_CONFIG[syncStatus];
+
+  const { records } = useSyncQueue();
+  const { pendingWrites } = useOfflineWrites();
+  const [isOnline, setIsOnline] = useState(true);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsOnline(navigator.onLine);
+      const goOnline = () => setIsOnline(true);
+      const goOffline = () => setIsOnline(false);
+      window.addEventListener("online", goOnline);
+      window.addEventListener("offline", goOffline);
+      return () => {
+        window.removeEventListener("online", goOnline);
+        window.removeEventListener("offline", goOffline);
+      };
+    }
+  }, []);
+
+  const pendingCount = records.filter(r => r.syncStatus === "pending").length + pendingWrites;
+  const activeSyncStatus: SyncStatus = !isOnline
+    ? "offline"
+    : pendingCount > 0
+      ? "pending"
+      : "synced";
+
+  const sync = SYNC_CONFIG[activeSyncStatus];
 
   return (
     <div className="flex flex-col h-screen bg-ghost-white">
@@ -69,7 +98,7 @@ export function TechnicianShell({
           >
             <Badge variant={sync.badge} size="sm" className="gap-1.5 cursor-pointer">
               {sync.icon}
-              {sync.label}
+              {sync.label}{pendingCount > 0 && ` (${pendingCount})`}
             </Badge>
           </button>
           <button
