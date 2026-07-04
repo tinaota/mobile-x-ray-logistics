@@ -45,5 +45,12 @@ export function getAccounts(): Account[] {
       initials: "SA",
       password: process.env.AUTH_ADMIN_PASSWORD ?? "admin123",
     },
+    {
+      email:    "copilot@radops.com",
+      role:     "copilot",
+      name:     "Co-Pilot Operator",
+      initials: "CP",
+      password: process.env.AUTH_COPILOT_PASSWORD ?? "copilot123",
+    },
   ];
 }

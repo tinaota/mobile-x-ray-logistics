@@ -5,7 +5,9 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export type Role = "dispatcher" | "technician" | "billing" | "client";
+export type Role = "dispatcher" | "technician" | "billing" | "client" | "copilot";
+// AI Co-Pilot personas — operational lenses selectable inside the copilot workspace
+export type CopilotPersona = "dispatcher" | "billing" | "field-tech";
 export type Priority = "stat" | "urgent" | "routine";
 // Canonical status set. The DB may still contain legacy "in_transit" rows;
 // normalizeOrderStatus() maps them at the fetch boundary so app code only

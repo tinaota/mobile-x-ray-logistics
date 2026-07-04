@@ -35,7 +35,7 @@ export async function proxy(req: NextRequest) {
 
   // Role-protected routes
   const roleFromPath = pathname.split("/")[1] as AuthRole;
-  const ROLE_ROUTES: AuthRole[] = ["dispatcher", "technician", "billing", "client", "admin"];
+  const ROLE_ROUTES: AuthRole[] = ["dispatcher", "technician", "billing", "client", "admin", "copilot"];
 
   if (ROLE_ROUTES.includes(roleFromPath)) {
     if (!session) {

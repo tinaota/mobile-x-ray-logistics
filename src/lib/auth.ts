@@ -1,6 +1,6 @@
 import { SignJWT, jwtVerify } from "jose";
 
-export type AuthRole = "dispatcher" | "technician" | "billing" | "client" | "admin";
+export type AuthRole = "dispatcher" | "technician" | "billing" | "client" | "admin" | "copilot";
 
 export interface Session {
   email: string;
@@ -18,6 +18,7 @@ export const ROLE_DASHBOARDS: Record<AuthRole, string> = {
   billing:    "/billing",
   client:     "/client",
   admin:      "/admin",
+  copilot:    "/copilot",
 };
 
 function getSecret(): Uint8Array {

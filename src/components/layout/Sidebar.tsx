@@ -48,6 +48,9 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: "Reports",    icon: <BarChart3 className="h-5 w-5" />,       href: "/billing/reports" },
     { label: "Compliance", icon: <ShieldCheck className="h-5 w-5" />,     href: "/billing/scrubbing" },
   ],
+  // Co-Pilot uses its own dedicated CopilotShell, never this Sidebar —
+  // entry exists purely so the Record<Role, ...> stays exhaustive.
+  copilot: [],
 };
 
 const roleMeta: Record<Role, { title: string; subtitle: string; ctaLabel?: string }> = {
@@ -55,6 +58,7 @@ const roleMeta: Record<Role, { title: string; subtitle: string; ctaLabel?: strin
   technician: { title: "RAD-FIELD",        subtitle: "Field Technician" },
   billing:    { title: "Revenue Command",  subtitle: "Unified Logistics Suite", ctaLabel: "New Reconciliation" },
   client:     { title: "MY X-RAY",         subtitle: "Home & Care Visit" },
+  copilot:    { title: "CO-PILOT",         subtitle: "AI Operations Assistant" },
 };
 
 interface SidebarProps {

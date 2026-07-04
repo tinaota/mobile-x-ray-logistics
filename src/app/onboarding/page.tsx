@@ -81,6 +81,9 @@ const ROLE_CREDENTIAL: Record<Role, string> = {
   technician: "Radiologic Technologist License",
   billing:    "Billing Manager Credential",
   client:     "Patient ID",
+  // Copilot accounts are provisioned directly (accounts.ts), never via this
+  // wizard — ROLE_OPTIONS above intentionally has no copilot card.
+  copilot:    "Co-Pilot Operator Access",
 };
 
 const ROLE_META: Record<Role, { label: string; color: string }> = {
@@ -88,6 +91,7 @@ const ROLE_META: Record<Role, { label: string; color: string }> = {
   technician: { label: "RAD-FIELD",       color: "bg-green-500/10 text-green-700"         },
   billing:    { label: "Revenue Command", color: "bg-warning-amber/10 text-warning-amber" },
   client:     { label: "MY X-RAY",        color: "bg-rose-500/10 text-rose-600"           },
+  copilot:    { label: "CO-PILOT",        color: "bg-radiology-indigo/10 text-radiology-indigo" },
 };
 
 // ── Page ──────────────────────────────────────────────────────────────────────

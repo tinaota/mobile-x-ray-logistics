@@ -17,6 +17,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   billing:    { label: "Revenue Command",  color: "bg-warning-amber/10 text-warning-amber"    },
   client:     { label: "MY X-RAY",         color: "bg-rose-500/10 text-rose-600"              },
   admin:      { label: "SYS ADMIN",        color: "bg-purple-500/10 text-purple-600"          },
+  copilot:    { label: "CO-PILOT",         color: "bg-radiology-indigo/10 text-radiology-indigo" },
 };
 
 

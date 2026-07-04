@@ -26,6 +26,7 @@ const roleLabel: Record<Role, string> = {
   technician: "RAD-FIELD",
   billing:    "REVENUE COMMAND",
   client:     "MY X-RAY",
+  copilot:    "CO-PILOT",
 };
 
 const roleSubtitle: Record<Role, string> = {
@@ -33,6 +34,7 @@ const roleSubtitle: Record<Role, string> = {
   technician: "Field Technician Portal",
   billing:    "Unified Logistics Suite",
   client:     "Home & Care Visit",
+  copilot:    "AI Operations Assistant",
 };
 
 const dispatcherNav = [
@@ -66,6 +68,8 @@ const navByRole: Record<Role, { label: string; href: string }[]> = {
     { label: "History",     href: "/client/history" },
     { label: "Contact",     href: "/client/contact" },
   ],
+  // Co-Pilot uses its own dedicated shell — entry for type-completeness only.
+  copilot:    [],
 };
 
 const healthConfig = {
