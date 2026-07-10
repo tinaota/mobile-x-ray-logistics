@@ -1,0 +1,150 @@
+MOBILE X-RAY LOGISTICS PLATFORM — CATCH-UP SUMMARY (Before -> Now)
+Compiled from the full git history and docs/ folder as of commit 9d3ae93 (2026-07-06)
+Repo: mobile-x-Ray-logistics
+
+====================================================
+WHAT THIS DOCUMENT IS
+====================================================
+A chronological walkthrough of how this platform grew from its first commit to where it stands
+today — 13 commits across roughly 7.5 weeks (2026-05-14 to 2026-07-06), grouped into 7 natural
+phases. Use this to get oriented on what exists, when it landed, and why — plus a flag on which
+of the repo's own docs are now out of date.
+
+====================================================
+TIMELINE — 7 PHASES
+====================================================
+
+PHASE 1 — FOUNDATION BUILD
+Date: 2026-05-14   Commit: 695ea36 "Initial commit — Mobile X-Ray Logistics Platform"
+One large initial commit shipped the entire skeleton at once: dispatcher ops hub, field
+technician mobile PWA, billing manager, AND a patient/client portal — four roles from day one,
+not built up incrementally. Stack: Next.js 15, React 19, TypeScript, Tailwind, Leaflet, Supabase.
+
+PHASE 2 — STABILIZATION FIXES
+Date: 2026-05-14 to 2026-05-15
+Commits: 2f7c42b, 4aef781, 005440f
+Quick follow-up fixes right after the initial build: the "client" role wasn't fully wired into
+role maps, Supabase needed to fail gracefully when env vars were missing at build time, and mock
+data needed a fallback path when Supabase wasn't configured. Housekeeping to make the fresh app
+resilient.
+
+PHASE 3 — NOTIFICATIONS
+Date: 2026-05-15   Commit: 15f8333 "Twilio SMS integration"
+Automated SMS notifications on order status changes, plus two-way messaging (dispatcher can text
+patients/facilities, replies come back in). Database migration 005_add_sms_channel.sql.
+
+PHASE 4 — AUTH & IDENTITY
+Date: 2026-05-18   Commit: e050634 "auth system — Supabase invite flow, onboarding wizard, admin
+user management"
+Real authentication replaces whatever placeholder existed before: multi-step onboarding wizard,
+Supabase invite-email flow with a JWT fallback, an /auth/callback route handling OTP/PKCE/
+implicit flows, admin user management, a login page issuing the rad-session JWT cookie, and a
+/join route for legacy invite links.
+
+PHASE 5 — CLIENT PORTAL REDESIGN + REALTIME TRACKING + PASSWORDLESS AUTH + FIRST DOCS WAVE
+Date: 2026-06-02   Commits: 2f72caf (large), 1f61616, b287d69
+The biggest single-day push in the project. The patient/client portal was redesigned (internally
+called the "Liquid Glass" theme), live technician coordinate tracking was added using Haversine
+distance math for real-time ETA, and passwordless OTP auth replaced/supplemented the invite flow.
+Several database migrations landed alongside it. This is also the day the first real
+documentation wave appeared — SOFTWARE_ARCHITECTURE.md, DATABASE_SCHEMA.md,
+DEVELOPMENT_MEMORY.md, UX_EVALUATION.md, CLIENT_PORTAL_DISCOVERY.md, and
+CLIENT_PORTAL_CONFIRMATION.md were all added in this one commit. Two small same-day follow-ups:
+a Twilio Account SID validation fix (was crashing Vercel builds) and a docs note on that build
+diagnostic.
+
+PHASE 6 — DUAL-SERVICE EXPANSION (RADIOLOGY + LAB/PHLEBOTOMY)
+Date: 2026-07-02   Commit: 67a438a "dual-service clinical logistics — laboratory workflow
+end-to-end"
+After roughly a one-month gap, the platform expanded from radiology-only to a unified
+Radiology + Laboratory/Phlebotomy engine. Added: barcode-based chain-of-custody tracking for
+specimens, an offline write-queue, a dispatcher specimen watchlist with a Lab Turnaround-Time
+KPI, technician fleet segmentation by discipline (imaging / phlebotomy / dual), prior-
+authorization gating, a lab panel selector, and a lab-specific billing modifier. Database
+migrations 010 and 011. DESIGN.md (design-token reference) was added/expanded and
+DATABASE_SCHEMA.md was updated in this same commit.
+
+PHASE 7 — AI CO-PILOT
+Date: 2026-07-04 to 2026-07-06
+Commits: 83ea156, 608cc00, c39cc58, 9d3ae93
+Added a sixth login role, "copilot" — a persona-aware AI assistant (Dispatcher / Billing /
+Field-Tech personas) built on Anthropic Claude via the Vercel AI SDK, with a streaming chat
+route, a live-context side rail, and server-side conversation persistence (migration 012). A
+same-week follow-up fix (608cc00) corrected a stale technicians.active_orders counter that was
+feeding bad data into both dispatcher views and the Co-Pilot's own live context. Architecture
+reference doc AI_COPILOT_ARCHITECTURE.md was added the same week (c39cc58). The final commit
+(9d3ae93) is routine dev-tooling housekeeping (regenerating Next.js 16 dev types), not a feature
+change.
+
+====================================================
+DOCS ADDED ALONG THE WAY
+====================================================
+Doc                             | Added        | Covers
+---------------------------------|--------------|--------------------------------------------
+SOFTWARE_ARCHITECTURE.md         | 2026-06-02   | Full tech stack, repo structure, auth/session
+                                  |              | model. Documents 5 roles — written before the
+                                  |              | lab and Co-Pilot expansions, so it's missing
+                                  |              | the 6th role and the dual-service model.
+DATABASE_SCHEMA.md               | 2026-06-02,  | Full Postgres schema (profiles, facilities,
+                                  | extended     | technicians incl. lat/long telemetry, orders,
+                                  | 2026-07-02   | invoices, triggers). Extended for the lab/
+                                  |              | specimen model in the dual-service commit.
+DEVELOPMENT_MEMORY.md            | 2026-06-02   | Sprint log for the client portal redesign —
+                                  |              | documents the "before" state (passive patient
+                                  |              | flow, static ETA, known bugs), the redesign
+                                  |              | work itself, and the Haversine ETA math.
+DESIGN.md                        | 2026-07-02   | Canonical design-token reference (colors,
+                                  |              | typography, spacing, radii) — expanded when
+                                  |              | the lab workflow shipped.
+AI_COPILOT_ARCHITECTURE.md       | 2026-07-06   | Full architecture reference for the Co-Pilot
+                                  |              | subsystem — personas, component map, frontend/
+                                  |              | backend design, persistence schema.
+CLIENT_PORTAL_DISCOVERY.md       | 2026-06-02   | UX discovery doc for the patient portal —
+                                  |              | identifies the "patients are passive" problem
+                                  |              | and defines the corrected 6-phase patient
+                                  |              | journey. The "why" behind the redesign commit.
+CLIENT_PORTAL_CONFIRMATION.md    | 2026-06-02   | Post-implementation validation doc confirming
+                                  |              | the redesign shipped — routes map, build/QA
+                                  |              | status, realtime channel confirmation.
+UX_EVALUATION.md                 | 2026-06-02   | Professional UX audit of the finished client
+                                  |              | portal redesign — heuristic evaluation plus a
+                                  |              | prioritized recommendation matrix for later.
+RAD-OPS AI Copilot TDD V1.docx   | 2026-07-07   | Formal Technical Design Document for the
+  + Overview & Questions.txt     |              | Co-Pilot subsystem, written to feed a future
+  + Build Evaluation.txt         |              | SOW/FRD. Verified against the actual build —
+                                  |              | see the Build Evaluation file for the full
+                                  |              | comparison.
+
+====================================================
+WHERE THE PLATFORM STANDS TODAY
+====================================================
+Six roles/dashboards exist, each with its own sub-routes:
+
+  /dispatcher  -> assignment, billing, credentials, fleet, intake, messages, monitoring,
+                  orders, reports
+  /technician  -> clinical, equipment, manifest, offline, scan
+  /billing     -> audit, invoices, ledger, reports, scrubbing
+  /client      -> contact, history, request        (patient/caregiver portal)
+  /copilot     -> single full-screen AI assistant workspace, no sub-routes, own chrome
+  /admin       -> settings
+
+Plus supporting routes: /auth/callback, /join, /login, /onboarding, and API routes under
+src/app/api/ for auth, copilot, and sms.
+
+====================================================
+KNOWN DOCUMENTATION DEBT — READ BEFORE TRUSTING THE OLDER DOCS
+====================================================
+CLAUDE.md has never been updated since the very first commit (695ea36, 2026-05-14) — confirmed
+via git log on that file specifically. It still documents only THREE roles (dispatcher,
+technician, billing), lists many routes as "[TO BUILD]" that shipped long ago with more
+sub-routes than it names (e.g. dispatcher's assignment/credentials/messages/monitoring pages,
+technician's clinical/scan pages), and has zero mention of the dual-service lab/phlebotomy model
+or the AI Co-Pilot role. Treat CLAUDE.md as describing the platform's DAY-ONE plan, not its
+current state.
+
+SOFTWARE_ARCHITECTURE.md (docs/) is also stale — last touched 2026-06-02, so it documents 5
+roles and predates both the dual-service expansion (2026-07-02) and the Co-Pilot role
+(2026-07-04). It's more current than CLAUDE.md but still one full expansion behind.
+
+The most up-to-date sources of truth right now are DATABASE_SCHEMA.md and DESIGN.md (both
+touched as of the dual-service commit) and AI_COPILOT_ARCHITECTURE.md (most recent, 2026-07-06).

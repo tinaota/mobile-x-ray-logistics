@@ -1,0 +1,98 @@
+RAD-OPS AI CO-PILOT — TDD OVERVIEW & REVIEW QUESTIONS
+Source document: RAD-OPS AI Copilot TDD V1.docx (Doc ID RAD-OPS-TDD-001, v0.2 DRAFT, dated July 7, 2026, prepared by Kenneth Rubio)
+Prepared for: non-technical review ahead of Solution Architect / stakeholder sign-off
+
+====================================================
+WHAT THIS DOCUMENT ACTUALLY IS
+====================================================
+It's a blueprint document for adding an AI assistant ("AI Co-Pilot") into the RAD-OPS platform.
+It's written for three audiences at once: sales will turn parts of it into a contract (Statement
+of Work), developers will turn other parts into a build spec, and a Solution Architect needs to
+approve the technical design before any of that happens. Right now it's still a draft — nothing
+has been built or signed off yet.
+
+====================================================
+WHAT THE AI CO-PILOT ACTUALLY DOES
+====================================================
+Think of it as a smart assistant that sits inside the existing software, not a general chatbot
+like ChatGPT. The key difference: every answer it gives is based on real, live data — actual
+orders, technicians, specimens, invoices — pulled fresh each time someone asks it something. It's
+specifically designed to never make things up about a patient or an order, which matters a lot in
+healthcare.
+
+It comes in three "modes" depending on who's using it:
+  - Dispatcher mode  — helps decide who covers an urgent (STAT) job before a specimen expires,
+                        flags coverage gaps
+  - Billing mode     — checks claims for missing codes or denial risk BEFORE submission, and
+                        flags unbilled revenue sitting around
+  - Field-Tech mode  — helps technicians in the field with "what do I do next" questions and
+                        chain-of-custody steps
+
+IMPORTANT LIMIT FOR V1: it only recommends — it can't actually assign an order or fix an invoice
+itself. A human still has to click the button.
+
+====================================================
+THE BUSINESS CASE (Section 3)
+====================================================
+The problem it's solving: staff currently hold critical, time-pressured decisions in their heads
+(which tech covers this STAT order, will this claim get denied). The pitch is fewer lost
+specimens, fewer denied claims, less wasted time, and easier onboarding for new field techs.
+
+The ROI numbers in the document (~$138,000/year illustrative benefit) are ENTIRELY MADE-UP
+PLACEHOLDER NUMBERS to show how the math would work — not this company's actual numbers. Nobody
+has plugged in real volumes yet.
+
+====================================================
+TIMELINE & COST
+====================================================
+Roughly a 12-week build, broken into 6 phases:
+  WP1 Foundations        -> environment setup, login/role gate, database schema, demo mode
+  WP2 Streaming Core     -> the live chat engine itself
+  WP3 Context Engine     -> connecting it to real, live operational data
+  WP4 Workspace UI       -> building the actual screens
+  WP5 Hardening & UAT    -> security testing
+  WP6 Deploy & Handover  -> going live, training, handoff
+
+Running the AI has an ongoing cost (Anthropic's API usage) that the document says is billed to
+the client, but it does not give a number.
+
+====================================================
+SECURITY
+====================================================
+Login-gated, role-restricted (only "copilot" and "admin" roles can access it), secrets kept
+server-side, and the AI is explicitly instructed never to invent patient health information.
+Chat transcripts get saved to a database table for record-keeping.
+
+====================================================
+THREE SOLID QUESTIONS TO RAISE AT THE REVIEW
+====================================================
+
+1) COST & ROI — "Show me our numbers, not example numbers"
+   Ask: "Section 3.5's ROI model looks solid as a framework, but every input — expired
+   specimens, denial rate, claim volume — is a placeholder. Before we commit, I want our
+   actual 12-month volumes run through this model."
+   Follow-up: "The document also says we're billed for Anthropic API usage (Section 6.1) but
+   gives no estimate. What's the expected monthly range once this is live at our volume?"
+   Why it matters: you're being asked to evaluate a business case built on invented numbers —
+   reasonable to ask for the real one before sign-off.
+
+2) PATIENT DATA STORAGE — "This is still an open question in your own document"
+   Ask: "Section 17, Q2 says transcript retention, encryption, and audit logging for stored
+   chat messages — which may reference patient info — are still undecided. That's a compliance
+   gap, not a technical detail. Who owns closing that before this goes anywhere near
+   production?"
+   Follow-up: "Is that decision happening before the 12-week build starts, or is it being
+   deferred into Work Package 1 or 5? I'd want it resolved before, not during."
+   Why it matters: a HIPAA-adjacent decision is currently unowned — fair to push on as a
+   non-technical stakeholder.
+
+3) "RECOMMENDS, DOESN'T ACT" — sanity-check the savings math
+   Ask: "Section 4.2 is explicit that v1 never takes action — no auto-assigning orders, no
+   auto-fixing invoices. A person still does that step by hand every time. Does the $138,000
+   illustrative benefit assume that manual step, or does it assume the AI just handles it?"
+   Why it matters: easy detail to gloss over in a pitch, and it directly affects whether the
+   savings estimate is realistic for year one.
+
+OPTIONAL CLOSING LINE, if you want to sound sharp:
+   "This reads like a well-structured draft — I just want the placeholder numbers replaced
+   with ours, and the PHI storage question closed, before it goes to SOW."

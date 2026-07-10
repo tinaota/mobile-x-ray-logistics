@@ -1,0 +1,108 @@
+RAD-OPS AI CO-PILOT — TDD vs. ACTUAL BUILD EVALUATION
+Source TDD: RAD-OPS AI Copilot TDD V1.docx (Doc ID RAD-OPS-TDD-001, v0.2 DRAFT, dated July 7, 2026)
+Compared against: the live codebase (src/app/api/copilot/, src/lib/copilot/, src/components/copilot/,
+supabase/migrations/012_ai_copilot.sql, docs/AI_COPILOT_ARCHITECTURE.md)
+
+====================================================
+BOTTOM LINE
+====================================================
+This is an unusually clean match — because the code was built BEFORE the TDD was written, not
+after. The TDD's own cover page lists its "Source baseline" as AI_COPILOT_ARCHITECTURE.md, and
+that architecture doc literally opens with "Shipped in commit 83ea156." So the real sequence was:
+
+    build it  ->  document the architecture  ->  write the TDD around what already existed
+
+That's not a red flag, but it changes what this document actually is. The 12-week delivery plan,
+work packages, and "expected outcomes at completion" are not a forward-looking commitment — most
+of the underlying engineering already exists and works. Worth knowing before treating this as a
+project that starts from zero.
+
+====================================================
+WHAT CHECKS OUT EXACTLY (verified against real code, not just the doc)
+====================================================
+- 3 personas (dispatcher/billing/field-tech) sharing one engine
+    -> Confirmed: personas.ts, prompts.ts, context.ts all branch cleanly per persona
+
+- Full-screen 3-column workspace at /copilot, with its own chrome
+    -> Confirmed: CopilotShell.tsx
+
+- Persona rail collapses to bottom tabs on mobile; context rail becomes a slide-over below the
+  "xl" breakpoint
+    -> Confirmed, exact breakpoint behavior present in the code
+
+- Token-by-token streaming via the Vercel AI SDK
+    -> Confirmed: streamText -> useChat
+
+- User turn persisted before the model call; assistant turn persisted in onFinish (so no message
+  is ever lost, even on a disconnect)
+    -> Confirmed, in that exact order, in the chat route
+
+- One conversation per (user, persona), race-safe get-or-create
+    -> Confirmed, matches the database migration's unique constraint exactly
+
+- JWT-based role gate (copilot + admin roles only), 401 for everyone else
+    -> Confirmed in both API routes
+
+- Returns a 503 error if the ANTHROPIC_API_KEY is missing
+    -> Confirmed
+
+- Graceful "mock mode" — the app works even without Supabase configured
+    -> Confirmed: every data fetch has a mock-data fallback
+
+- Row-Level Security enabled with zero policies; only the server-side service-role key can touch
+  the data
+    -> Confirmed in the migration, with a comment explaining exactly why
+
+- Real provider error messages surfaced to the user (not a generic "something went wrong")
+    -> Confirmed
+
+- STAT priority toggle, dispatcher-only, appends a directive to the AI's instructions
+    -> Confirmed
+
+- No tool-calling (AI can't take actions), no voice input, one conversation thread forever — all
+  correctly marked "out of scope for v1"
+    -> Confirmed absent — nothing partially built that isn't already claimed as out of scope
+
+Nearly all 20 functional requirements (FR-001 through FR-020) in the TDD map to real, working
+code. That's a rare level of fidelity for a document still marked "draft, pending sign-off."
+
+====================================================
+WHAT'S GENUINELY STILL A GAP (not just paperwork — actual missing pieces)
+====================================================
+
+1) PATIENT DATA / TRANSCRIPT STORAGE (Section 17, Open Question Q2) — STILL UNRESOLVED IN CODE
+   The database table storing chat transcripts has no retention timer, no encryption-at-rest
+   setting beyond Supabase's defaults, and no dedicated audit log. The TDD flags this as an open
+   question for the Solution Architect — confirmed it's not just undecided on paper, it is not
+   built either.
+
+2) ZERO AUTOMATED TESTS EXIST ANYWHERE IN THIS CODEBASE
+   Not just for Co-Pilot — for anything in the whole project. The TDD assigns a "T = test"
+   verification method to several requirements (e.g. NFR-004 zero message loss, FR-011 auth
+   enforcement). Right now there is no test suite to actually prove those pass — someone would
+   have to click through it manually every time to confirm it still works.
+
+3) PERFORMANCE TARGETS ARE UNVERIFIABLE FROM CODE ALONE
+   NFR-001 (latency <= 3s), NFR-002 (rehydration <= 1.5s), and NFR-003 (99.5% uptime) are marked
+   "proposed" in the doc for a reason — nobody has measured them yet. Can't confirm or deny
+   without actually load-testing the live system.
+
+4) ROW-CAP / DATA-GROWTH STRATEGY IS ONLY HALF-ANSWERED (Section 17, Open Question Q3)
+   The code does cap how many items it shows the AI (e.g. top 5 STAT orders, top 10 flagged
+   invoices) — but it's just "take the first N in whatever order the database returns," not a
+   real prioritization strategy. As order volume grows, this could quietly show the AI the wrong
+   10 flagged invoices instead of the most urgent ones.
+
+5) NO "CLEAR CONVERSATION" CONTROL AND NO AI USAGE/COST DASHBOARD EXIST
+   Both consistent with the document's own open questions (Q6 and Q4) — confirming those are
+   real, present-day product gaps, not just hypothetical ones raised for discussion.
+
+====================================================
+WHAT THIS MEANS PRACTICALLY
+====================================================
+The engineering work described in this TDD is already real and functioning, which is good news
+for cost/timeline confidence — you would not be paying for something unbuilt. But the document's
+six "Open Questions for Solution Architect Review" are not hypothetical checkboxes — every one of
+them corresponds to something genuinely missing or unmeasured in the live product today,
+especially the PHI/transcript storage question (Q2), which is the one worth pushing hardest on
+given this is a healthcare company.
