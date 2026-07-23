@@ -17,9 +17,10 @@ import { useState, useEffect } from "react";
 const TECH_NAV = [
   { label: "Field View", icon: Map,             href: "/technician"           },
   { label: "Manifest",   icon: ClipboardList,   href: "/technician/manifest"  },
-  { label: "Scan & QC",  icon: LayoutDashboard, href: "/technician/scan"      },
   { label: "Clinical",   icon: FileText,        href: "/technician/clinical"  },
+  { label: "Scan & QC",  icon: LayoutDashboard, href: "/technician/scan"      },
   { label: "Equipment",  icon: Wrench,          href: "/technician/equipment" },
+  { label: "Offline",    icon: WifiOff,         href: "/technician/offline"   },
 ];
 
 const SYNC_CONFIG: Record<SyncStatus, {
