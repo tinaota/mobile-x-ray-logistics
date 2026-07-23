@@ -1,0 +1,358 @@
+diff --git a/src/app/client/page.tsx b/src/app/client/page.tsx
+index 11a76e0..78b385a 100644
+--- a/src/app/client/page.tsx
++++ b/src/app/client/page.tsx
+@@ -322,13 +322,17 @@ export default function ClientAppointmentPage() {
+ 
+       {/* Dynamic Hero Status Card — Liquid Glass Gradient treatments */}
+       {heroCfg && (
+-        <div className={cn(
+-          "relative overflow-hidden rounded-proto-xl p-6 text-white shadow-proto-pop transition-all duration-300 animate-fade-in",
+-          heroCfg.tone === "blue"  ? "bg-gradient-to-br from-blue-500 to-blue-700" :
+-          heroCfg.tone === "navy"  ? "bg-gradient-to-br from-slate-700 to-midnight-navy" :
+-          heroCfg.tone === "amber" ? "bg-gradient-to-br from-amber-500 to-warning-amber" :
+-                                     "bg-gradient-to-br from-green-500 to-green-700"
+-        )}>
++        <div
++          role="status"
++          aria-live="polite"
++          className={cn(
++            "relative overflow-hidden rounded-proto-xl p-6 text-white shadow-proto-pop transition-all duration-300 animate-fade-in",
++            heroCfg.tone === "blue"  ? "bg-gradient-to-br from-blue-500 to-blue-700" :
++            heroCfg.tone === "navy"  ? "bg-gradient-to-br from-slate-700 to-midnight-navy" :
++            heroCfg.tone === "amber" ? "bg-gradient-to-br from-amber-500 to-warning-amber" :
++                                       "bg-gradient-to-br from-green-500 to-green-700"
++          )}
++        >
+           {/* Background shine sphere */}
+           <div className="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-white/10 filter blur-md pointer-events-none" />
+           
+@@ -343,7 +347,7 @@ export default function ClientAppointmentPage() {
+           {heroCfg.eta && (
+             <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
+               <div className="flex items-center gap-3">
+-                <span className="relative flex h-2.5 w-2.5">
++                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
+                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
+                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
+                 </span>
+diff --git a/src/app/client/request/page.tsx b/src/app/client/request/page.tsx
+index a7a4f30..f889043 100644
+--- a/src/app/client/request/page.tsx
++++ b/src/app/client/request/page.tsx
+@@ -301,8 +301,9 @@ export default function RequestAppointmentPage() {
+             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+               <CardContent className="py-5 space-y-4">
+                 <div>
+-                  <label className={labelCls}>Patient Name</label>
++                  <label htmlFor="patient-name" className={labelCls}>Patient Name</label>
+                   <input
++                    id="patient-name"
+                     type="text"
+                     readOnly
+                     value={patientName}
+@@ -311,8 +312,9 @@ export default function RequestAppointmentPage() {
+                 </div>
+ 
+                 <div>
+-                  <label className={labelCls}>Date of Birth</label>
++                  <label htmlFor="patient-dob" className={labelCls}>Date of Birth</label>
+                   <input
++                    id="patient-dob"
+                     type="date"
+                     value={form.dob}
+                     onChange={e => set("dob", e.target.value)}
+@@ -331,24 +333,27 @@ export default function RequestAppointmentPage() {
+             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+               <CardContent className="py-5 space-y-4">
+                 <div>
+-                  <label className={labelCls}>Street Address</label>
++                  <label htmlFor="street-address" className={labelCls}>Street Address</label>
+                   <input
++                    id="street-address"
+                     type="text"
+                     value={form.address}
+                     onChange={e => set("address", e.target.value)}
+                     placeholder="123 Main St, Phoenix, AZ 85001"
++                    aria-describedby={addressWarning ? "address-warning" : undefined}
+                     className={inputCls}
+                   />
+                   {addressWarning && (
+-                    <p className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
++                    <p id="address-warning" className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
+                       ⚠️ {addressWarning}
+                     </p>
+                   )}
+                 </div>
+ 
+                 <div>
+-                  <label className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
++                  <label htmlFor="unit-floor-room" className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
+                   <input
++                    id="unit-floor-room"
+                     type="text"
+                     value={form.unit}
+                     onChange={e => set("unit", e.target.value)}
+@@ -368,9 +373,10 @@ export default function RequestAppointmentPage() {
+             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+               <CardContent className="py-5 space-y-5">
+                 <div>
+-                  <label className={labelCls}>Requested Study / Panel</label>
++                  <label htmlFor="requested-procedure" className={labelCls}>Requested Study / Panel</label>
+                   {form.modality === "laboratory" ? (
+                     <LabPanelCombobox
++                      id="requested-procedure"
+                       value={form.procedure}
+                       onChange={v => set("procedure", v)}
+                       options={LABORATORY_PROCEDURES}
+@@ -380,6 +386,7 @@ export default function RequestAppointmentPage() {
+                   ) : (
+                     <div className="relative">
+                       <select
++                        id="requested-procedure"
+                         value={form.procedure}
+                         onChange={e => set("procedure", e.target.value)}
+                         className={cn(inputCls, "appearance-none pr-8 cursor-pointer")}
+@@ -426,9 +433,10 @@ export default function RequestAppointmentPage() {
+                 )}
+ 
+                 <div>
+-                  <label className={labelCls}>Preferred Date</label>
++                  <label htmlFor="preferred-date" className={labelCls}>Preferred Date</label>
+                   <div className="relative">
+                     <input
++                      id="preferred-date"
+                       type="date"
+                       value={form.date}
+                       onChange={e => set("date", e.target.value)}
+@@ -441,8 +449,12 @@ export default function RequestAppointmentPage() {
+                 </div>
+ 
+                 <div>
+-                  <label className={labelCls}>Preferred Time</label>
+-                  <div className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md">
++                  <label id="preferred-time-label" className={labelCls}>Preferred Time</label>
++                  <div
++                    role="radiogroup"
++                    aria-labelledby="preferred-time-label"
++                    className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md"
++                  >
+                     {[
+                       { label: "Morning",   sub: "7a-12p" },
+                       { label: "Afternoon", sub: "12p-5p" },
+@@ -453,6 +465,8 @@ export default function RequestAppointmentPage() {
+                         <button
+                           key={slot.label}
+                           type="button"
++                          role="radio"
++                          aria-checked={isSelected}
+                           onClick={() => set("timeSlot", slot.label)}
+                           className={cn(
+                             "flex flex-col items-center justify-center py-2 px-1 rounded-proto-sm transition-all duration-150",
+@@ -482,8 +496,9 @@ export default function RequestAppointmentPage() {
+             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+               <CardContent className="py-5 space-y-4">
+                 <div>
+-                  <label className={labelCls}>Access Instructions</label>
++                  <label htmlFor="access-instructions" className={labelCls}>Access Instructions</label>
+                   <textarea
++                    id="access-instructions"
+                     value={form.accessNotes}
+                     onChange={e => set("accessNotes", e.target.value)}
+                     placeholder="Gate code, parking instructions, elevator location…"
+@@ -493,8 +508,9 @@ export default function RequestAppointmentPage() {
+                 </div>
+ 
+                 <div>
+-                  <label className={labelCls}>Special Notes for Technician</label>
++                  <label htmlFor="special-notes" className={labelCls}>Special Notes for Technician</label>
+                   <textarea
++                    id="special-notes"
+                     value={form.specialNotes}
+                     onChange={e => set("specialNotes", e.target.value)}
+                     placeholder="Anything the technician should know before arriving…"
+diff --git a/src/app/dispatcher/intake/page.tsx b/src/app/dispatcher/intake/page.tsx
+index 270855e..a728cb9 100644
+--- a/src/app/dispatcher/intake/page.tsx
++++ b/src/app/dispatcher/intake/page.tsx
+@@ -289,14 +289,15 @@ export default function IntakePage() {
+               {/* Modality Twin Cards (Failsafe Inception) */}
+               {!order.modality ? (
+                 <div className="space-y-4">
+-                  <label className="font-mono text-xs font-bold uppercase tracking-wider text-on-surface-variant block">
++                  <label id="service-line-label" className="font-mono text-xs font-bold uppercase tracking-wider text-on-surface-variant block">
+                     Select Service Line (Required)
+                   </label>
+-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
++                  <div role="group" aria-labelledby="service-line-label" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                     {/* Radiology Card */}
+-                    <div 
++                    <button
++                      type="button"
+                       onClick={() => handleSwitchModality("radiology")}
+-                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-radiology-indigo active:scale-[0.99]"
++                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-radiology-indigo active:scale-[0.99] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-radiology-indigo focus-visible:ring-offset-2"
+                     >
+                       <div className="flex justify-between items-start mb-6">
+                         <div className="bg-radiology-indigo text-white p-3 rounded-xl">
+@@ -309,12 +310,13 @@ export default function IntakePage() {
+                           Portable X-Ray, Ultrasound, or EKG studies at bedside.
+                         </p>
+                       </div>
+-                    </div>
++                    </button>
+ 
+                     {/* Laboratory Card */}
+-                    <div 
++                    <button
++                      type="button"
+                       onClick={() => handleSwitchModality("laboratory")}
+-                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-laboratory-rose active:scale-[0.99]"
++                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-laboratory-rose active:scale-[0.99] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-laboratory-rose focus-visible:ring-offset-2"
+                     >
+                       <div className="flex justify-between items-start mb-6">
+                         <div className="bg-laboratory-rose text-white p-3 rounded-xl">
+@@ -327,7 +329,7 @@ export default function IntakePage() {
+                           Phlebotomy draws and transport with specimen stability monitors.
+                         </p>
+                       </div>
+-                    </div>
++                    </button>
+                   </div>
+                   {modalityError && <p className="text-xs text-emergency-red font-semibold">{modalityError}</p>}
+                 </div>
+@@ -386,8 +388,9 @@ export default function IntakePage() {
+                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                       {isLabOrder ? (
+                         <div>
+-                          <label className="block text-sm font-medium text-on-surface mb-1.5">Lab Panel / CPT Code</label>
++                          <label htmlFor="lab-panel-cpt-code" className="block text-sm font-medium text-on-surface mb-1.5">Lab Panel / CPT Code</label>
+                           <LabPanelCombobox
++                            id="lab-panel-cpt-code"
+                             value={activeProcedures.find(p => p.value === order.cptCode)?.label ?? ""}
+                             onChange={label => {
+                               const proc = activeProcedures.find(p => p.label === label);
+diff --git a/src/components/domain/LabPanelCombobox.tsx b/src/components/domain/LabPanelCombobox.tsx
+index dd55881..5b2b341 100644
+--- a/src/components/domain/LabPanelCombobox.tsx
++++ b/src/components/domain/LabPanelCombobox.tsx
+@@ -12,6 +12,8 @@ interface LabPanelComboboxProps {
+   className?: string;
+   /** Extra classes for the trigger button (to match host form inputs). */
+   inputClassName?: string;
++  /** id applied to the trigger button, so a parent <label htmlFor> can reference it. */
++  id?: string;
+ }
+ 
+ /**
+@@ -19,7 +21,7 @@ interface LabPanelComboboxProps {
+  * Urinalysis, …). Type to filter; click or Enter to select.
+  */
+ export function LabPanelCombobox({
+-  value, onChange, options, placeholder = "Search lab panels…", className, inputClassName,
++  value, onChange, options, placeholder = "Search lab panels…", className, inputClassName, id,
+ }: LabPanelComboboxProps) {
+   const [open, setOpen] = useState(false);
+   const [query, setQuery] = useState("");
+@@ -47,6 +49,7 @@ export function LabPanelCombobox({
+     <div ref={rootRef} className={cn("relative", className)}>
+       {/* Trigger */}
+       <button
++        id={id}
+         type="button"
+         onClick={() => setOpen(o => !o)}
+         className={cn(
+diff --git a/src/components/ui/Modal.tsx b/src/components/ui/Modal.tsx
+index 0dd8454..0a91c64 100644
+--- a/src/components/ui/Modal.tsx
++++ b/src/components/ui/Modal.tsx
+@@ -2,9 +2,12 @@
+ 
+ import { cn } from "@/lib/utils";
+ import { X } from "lucide-react";
+-import { useEffect, type ReactNode } from "react";
++import { useEffect, useRef, type ReactNode } from "react";
+ import { Button } from "./Button";
+ 
++const FOCUSABLE_SELECTOR =
++  'a[href], button:not([disabled]), textarea:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
++
+ interface ModalProps {
+   open: boolean;
+   onClose: () => void;
+@@ -23,9 +26,49 @@ const sizeMap = {
+ };
+ 
+ export function Modal({ open, onClose, title, description, children, className, size = "md" }: ModalProps) {
++  const panelRef = useRef<HTMLDivElement>(null);
++  const previouslyFocused = useRef<HTMLElement | null>(null);
++
++  // Move focus into the panel on open; restore focus to the trigger on close.
++  useEffect(() => {
++    if (!open) return;
++    previouslyFocused.current = document.activeElement as HTMLElement | null;
++
++    const panel = panelRef.current;
++    const focusable = panel?.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR);
++    (focusable?.[0] ?? panel)?.focus();
++
++    return () => {
++      previouslyFocused.current?.focus?.();
++    };
++  }, [open]);
++
++  // Escape closes; Tab/Shift+Tab is trapped within the panel.
+   useEffect(() => {
+     if (!open) return;
+-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
++    const onKey = (e: KeyboardEvent) => {
++      if (e.key === "Escape") {
++        onClose();
++        return;
++      }
++      if (e.key !== "Tab") return;
++
++      const panel = panelRef.current;
++      if (!panel) return;
++      const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR));
++      if (focusable.length === 0) return;
++
++      const first = focusable[0];
++      const last = focusable[focusable.length - 1];
++
++      if (e.shiftKey && document.activeElement === first) {
++        e.preventDefault();
++        last.focus();
++      } else if (!e.shiftKey && document.activeElement === last) {
++        e.preventDefault();
++        first.focus();
++      }
++    };
+     window.addEventListener("keydown", onKey);
+     return () => window.removeEventListener("keydown", onKey);
+   }, [open, onClose]);
+@@ -47,8 +90,10 @@ export function Modal({ open, onClose, title, description, children, className,
+ 
+       {/* Panel */}
+       <div
++        ref={panelRef}
++        tabIndex={-1}
+         className={cn(
+-          "relative w-full bg-surface-container-lowest rounded-2xl shadow-card-lg border border-outline-variant/40 animate-fade-in",
++          "relative w-full bg-surface-container-lowest rounded-2xl shadow-card-lg border border-outline-variant/40 animate-fade-in focus:outline-none",
+           sizeMap[size],
+           className
+         )}
+diff --git a/src/components/ui/StatusBadge.tsx b/src/components/ui/StatusBadge.tsx
+index 49092ce..d356391 100644
+--- a/src/components/ui/StatusBadge.tsx
++++ b/src/components/ui/StatusBadge.tsx
+@@ -38,7 +38,7 @@ interface PriorityBadgeProps {
+ }
+ 
+ const priorityConfig: Record<Priority, { label: string; className: string; dot: string }> = {
+-  stat:    { label: "STAT",    className: "bg-emergency-red text-white",         dot: "bg-white" },
++  stat:    { label: "STAT",    className: "bg-red-600 text-white",               dot: "bg-white" },
+   urgent:  { label: "URGENT",  className: "bg-warning-amber text-midnight-navy", dot: "bg-midnight-navy" },
+   routine: { label: "ROUTINE", className: "bg-surface-container-high text-on-surface-variant", dot: "bg-on-surface-variant" },
+ };

@@ -1,0 +1,203 @@
+RAD-COMMAND: WORKFLOW COMPARISON & ADA/WCAG ACCESSIBILITY AUDIT
+Repo: github.com/tinaota/mobile-x-ray-logistics
+Reference doc: integrated_clinical_workflows.md (Radiology & Laboratory Workflows)
+=================================================================
+
+1. WORKFLOW MAPPING — DOC vs. REPO
+-------------------------------------------------
+
+Workflow Step (doc)                  | RAD-COMMAND Implementation                                          | Status
+--------------------------------------|----------------------------------------------------------------------|----------
+Orders / SNF outreach                | dispatcher/intake, dispatcher/orders                                 | Covered
+Patient Intake & Eligibility         | dispatcher/intake (patient form)                                     | Covered
+Tech/Phlebotomist Dispatch & Routing | dispatcher/assignment, dispatcher/fleet                              | Covered
+Patient Exam & Imaging               | technician/scan, technician/clinical                                 | Covered
+Patient Lab Draw                     | PhlebotomyDrawPanel.tsx, LabPanelCombobox.tsx, BarcodeScanner.tsx    | Covered
+Specimen Drop-off / TAT Tracking     | SpecimenStabilityBadge.tsx, useSpecimens.ts                          | Partial — no dedicated drop-off logistics screen comparable to the imaging fleet view
+Interpretation & Results             | technician/clinical                                                  | Thin — no distinct reading/results surface separate from capture
+Billing & Revenue Cycle              | billing/invoices, billing/ledger, billing/scrubbing, billing/audit   | Strong — more built out than the doc's single row implies
+CRM / Account Management             | dispatcher/messages                                                  | Partial — closer to operational messaging than account/retention CRM
+
+Notes:
+- The repo is more mature than the doc implies on Lab and Billing.
+- The repo is thinner than the doc implies on Results/Interpretation and CRM/Retention — these
+  are the two real gaps if using the doc as a roadmap checklist.
+
+
+2. ADA / WCAG AUDIT (verified directly against source code)
+-------------------------------------------------
+
+DESIGN.md states 48px touch targets and "mandatory high-contrast mode" as requirements, but
+implementation doesn't fully deliver on them yet.
+
+[HIGH] Form labels not programmatically associated with inputs — WCAG 1.3.1 / 4.1.2
+  Where: client/request/page.tsx, dispatcher/intake/page.tsx, and other form pages
+  Pattern found:
+    <label className={labelCls}>Patient Name</label>
+    <input type="text" ... />
+  Findings: 39 <label> tags across the codebase, only 2 htmlFor attributes.
+  Impact: Visually fine, but a screen reader focusing the input announces nothing. This affects
+  the patient-intake form — the single place accessibility matters most in this product.
+  Fix: Add matching id/htmlFor pairs (or wrap the input inside the label element). Low effort,
+  high value — applies across ~10 form pages.
+
+[HIGH] STAT priority badge fails color contrast — WCAG 1.4.3
+  Where: components/ui/StatusBadge.tsx (PriorityBadge, "stat" variant)
+  Pattern found: white text on emergency-red (#EF4444) background — approx. 3.76:1 contrast
+  ratio, below the 4.5:1 minimum required for text at this size.
+  Impact: This is the badge technicians need to read fastest, often in bright field light
+  (per DESIGN.md's own high-ambient-light requirement).
+  Fix: Darken the red (e.g. #DC2626 / red-600, ~4.8:1) or keep red-500 as background with
+  dark navy text instead of white.
+
+[MEDIUM] Modals have no focus trap or focus return — WCAG 2.4.3
+  Where: components/ui/Modal.tsx
+  Findings: Escape-to-close works, and role="dialog"/aria-modal are correctly set. However,
+  on open, focus is not moved into the panel, and on close, focus is not returned to the
+  triggering element. Keyboard/screen-reader users can tab out behind the backdrop.
+  Fix: Add a small useFocusTrap hook (~20 lines). Fixes this app-wide since everything routes
+  through the one shared Modal component.
+
+[MEDIUM] No live regions for real-time status changes — WCAG 4.1.3
+  Where: app-wide (zero aria-live usage found in src/)
+  Impact: The client tracking page updates status ("en route" -> "in progress") and ETA in
+  place. A screen reader user gets no announcement when this happens.
+  Fix: Wrap the status stepper / ETA text in an aria-live="polite" region.
+
+WHAT'S ALREADY SOLID (do not over-fix):
+  - Status/priority is never color-only — every badge pairs color with a text label
+    (StatusBadge.tsx), correctly satisfying 1.4.1.
+  - Icon-only buttons (close, search, notifications, remove) consistently have aria-label.
+  - Tabs.tsx, Toast.tsx, and comboboxes use correct ARIA roles (tablist/tab/tabpanel,
+    role="alert", role="listbox"/"option").
+
+
+3. RECOMMENDED NEXT STEPS
+-------------------------------------------------
+1. Patch label-association issue across form pages (high value, low risk).
+2. Add focus-trap hook to shared Modal component (fixes app-wide in one place).
+3. Fix STAT badge contrast ratio.
+4. Add aria-live region to client tracking status/ETA.
+5. Longer-term: scope out a dedicated Results/Interpretation surface and a true CRM/retention
+   module to close the two workflow gaps identified in Section 1.
+
+
+4. COMPETITIVE COMPARISON — B2B / OPS TOOLING
+-------------------------------------------------
+Note: RAD-COMMAND is primarily a B2B / operations platform (dispatcher, field technician,
+billing manager) rather than a patient-facing app. The comparison below benchmarks against
+the facility-side and field-ops tooling of real competitors, not consumer health apps.
+
+Competitors reviewed:
+- DispatchExpress (DispatchHealth) — facility-side product embedded inside PointClickCare.
+  TridentCare acquired DispatchHealth's imaging business unit (effective Jan 20, 2026),
+  which operated portable X-ray/ultrasound across 16 states in home, post-acute, and
+  correctional settings.
+- Getlabs Portal — booking/orchestration platform used by partner organizations to dispatch
+  mobile phlebotomists, track appointment progress, and pull diagnostic data + analytics.
+- Generic mobile-phlebotomy dispatch software (category pattern, e.g. TrackoBit-style tools).
+
+Comparison table:
+
+Dimension                  | RAD-COMMAND                          | DispatchExpress            | Getlabs Portal              | Generic phlebotomy dispatch SW
+----------------------------|----------------------------------------|-----------------------------|------------------------------|----------------------------------
+Delivery model              | Standalone dispatcher/tech/billing web  | Embedded inside              | Standalone portal + API      | Standalone dispatch software
+                             | app + PWA                               | PointClickCare (facility's   | for partners                 |
+                             |                                          | existing EMR)                |                               |
+Facility-side visibility    | dispatcher/monitoring (live map by      | Clinical team availability,  | Dispatch phlebotomists,      | Real-time phlebotomist location
+                             | facility), dispatcher/orders            | ETA, ongoing status updates  | track appointment progress,  | tracking for managers
+                             |                                          | inside PointClickCare        | access results/notes/media   |
+Fleet/roster management     | dispatcher/fleet — Imaging Techs vs.    | Not publicly detailed        | Not publicly detailed        | Route/schedule presets,
+                             | Phlebotomists, Online/Offline status    |                               |                               | auto-detect right phlebotomist
+                             |                                          |                               |                               | for emergency draws
+No-show / reassignment      | Not confirmed — check dispatcher/       | Not publicly detailed        | Not publicly detailed        | Named feature: managers find a
+handling                     | assignment                              |                               |                               | replacement when someone
+                             |                                          |                               |                               | fails to show
+Credentialing / compliance  | dispatcher/credentials — License        | Not publicly detailed         | Not publicly detailed        | Not typically a feature
+                             | Number, Credential Expiry, Valid/       |                               |                               |
+                             | Expiring/Expired states                 |                               |                               |
+Ops analytics                | dispatcher/reports (Avg Response Time, | Not public                   | Detailed analytics: NPS,     | Basic performance/activity
+                             | Completion Rate, STAT Response),        |                               | patient non-adherence rates  | tracking
+                             | billing/reports (by facility, by        |                               |                               |
+                             | week/month/quarter/year)                |                               |                               |
+Billing/revenue cycle       | Strong — scrubbing, ledger, audit trail | Not public                   | Billed separately by lab     | Rare
+                             |                                          |                               | (not a billing system)       |
+
+Key takeaways:
+
+1. Credentialing is a real differentiator, not a nice-to-have. None of the three competitors
+   publicly show anything as built-out as dispatcher/credentials (expiry tracking, license
+   numbers, live status states). For a HIPAA-adjacent field-services product this is a
+   legitimate selling point in a pitch or interview — most competitors treat credentialing as
+   a back-office HR process, not a live dashboard.
+
+2. The embedded-vs-standalone question is the real strategic one, not patient UX polish.
+   DispatchExpress's core pitch is that facility staff never learn a new tool — it lives
+   inside PointClickCare, which most SNFs already use. RAD-COMMAND is a standalone dispatcher
+   desktop. Standalone gives full control over UX (richer fleet/monitoring/reports views),
+   but means every new facility has a second system to log into. Worth being deliberate about
+   which way to frame this in an interview.
+
+3. No-show/reassignment isn't confirmed to exist in RAD-COMMAND yet. Generic phlebotomy
+   dispatch software treats "find a replacement when someone doesn't show" as a named
+   feature. Needs verification in dispatcher/assignment — confirm whether this is present or
+   a genuine gap.
+
+4. Analytics maturity is close but not equal. Getlabs Portal explicitly sells NPS and patient
+   non-adherence rate reporting — a retention/quality layer. RAD-COMMAND's dispatcher/reports
+   and billing/reports are operational (response time, completion rate, revenue by facility)
+   but lack a satisfaction/retention metric — this maps back to the CRM/retention gap
+   identified in Section 1.
+
+
+5. PRIORITIZED IMPROVEMENT LIST (synthesized from Sections 1-4)
+-------------------------------------------------
+
+HIGH PRIORITY — fix first (concrete, low-risk, verified in code)
+[DONE] 1. Associate form labels with inputs (htmlFor/id) across client/request,
+   dispatcher/intake, and lab panel forms. Fixed: Patient Name, Date of Birth, Street
+   Address, Unit/Floor/Room, Requested Study/Panel, Preferred Date, Preferred Time
+   (converted to a proper radiogroup), Access Instructions, Special Notes, Lab Panel/CPT
+   Code. Also converted the Radiology/Laboratory modality selector cards in
+   dispatcher/intake from unlabelled clickable <div>s into real keyboard-accessible
+   <button>s inside a labelled role="group" (WCAG 2.1.1 + 4.1.2). Added an `id` prop to
+   LabPanelCombobox.tsx so its trigger can be referenced by a parent <label htmlFor>.
+[DONE] 2. Fix STAT badge contrast: changed bg-emergency-red -> bg-red-600 in
+   StatusBadge.tsx (white text now ~4.8:1, passes WCAG 1.4.3; red-600 already used
+   elsewhere in the codebase for consistency).
+[DONE] 3. Add focus trap + focus return to the shared Modal.tsx: focus now moves into the
+   panel on open, Tab/Shift+Tab is trapped within it, Escape still closes, and focus
+   returns to the triggering element on close.
+[DONE] 4. Add aria-live to status/ETA updates: the hero status card on the client
+   tracking page (src/app/client/page.tsx) now has role="status" aria-live="polite" so
+   status/ETA changes are announced to screen reader users. (Note: only the hero card was
+   covered — the vertical status stepper elsewhere on the page was not addressed and may
+   need the same treatment.)
+
+Implementation: see ada_accessibility_fixes.patch (git diff, 6 files changed) for the full
+change set. Apply with `git apply ada_accessibility_fixes.patch` from the repo root.
+
+MEDIUM PRIORITY — real product gaps surfaced by the competitive research
+5. Build no-show / reassignment handling in dispatcher/assignment. CONFIRMED MISSING
+   (verified via code search — no reassign/no-show/replace logic found). Every generic
+   phlebotomy dispatch competitor treats this as a named feature. Functional gap, not a
+   polish item — prioritize over anything cosmetic.
+6. Add a retention/quality metric to dispatcher/reports or billing/reports (e.g. an NPS or
+   facility-satisfaction score). Getlabs Portal sells this explicitly; current reports are
+   purely operational. Also closes the CRM/retention gap from Section 1.
+7. Stand up a dedicated Results/Interpretation surface, separate from technician/clinical.
+   Both the workflow-mapping doc and the competitive set treat "results delivery" as its own
+   step; currently folded into capture and thin.
+
+LOWER PRIORITY — worth tracking, less urgent
+8. Two-way messaging (already flagged in UX_EVALUATION.md) — chat bubbles currently only show
+   outbound messages, not responses. Less urgent given RAD-COMMAND's B2B orientation, but
+   still relevant to the dispatcher/facility access-note flow.
+9. Decide and document standalone-vs-embedded positioning (vs. DispatchExpress living inside
+   PointClickCare). Not a code fix — a product/strategy note worth having ready for
+   interviews; explains why fleet/monitoring/reports views can be richer than a competitor's.
+
+NOT WORTH CHASING
+Reschedule/cancel self-service windows and SMS-first notifications (Getlabs' strengths) are
+patient-facing UX patterns. Given RAD-COMMAND's B2B orientation, deprioritize below everything
+above.
