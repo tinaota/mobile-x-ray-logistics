@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { ReactNode } from "react";
 
 const CLIENT_NAV = [
-  { label: "Appointment", icon: CalendarCheck, href: "/client"         },
+  { label: "Home",        icon: CalendarCheck, href: "/client"         },
   { label: "Request",     icon: Sparkles,      href: "/client/request" },
   { label: "History",     icon: History,       href: "/client/history" },
   { label: "Contact",     icon: Phone,         href: "/client/contact" },

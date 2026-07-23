@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
+import { Sidebar } from "@/components/layout/Sidebar";
 import { cn } from "@/lib/utils";
 import type { SyncStatus } from "@/lib/utils";
 import type { ReactNode } from "react";
@@ -91,11 +92,28 @@ export function TechnicianShell({
 
   const sync = SYNC_CONFIG[activeSyncStatus];
 
+  const handleLogout = async () => {
+    await fetch("/api/auth/logout", { method: "POST" });
+    window.location.href = "/login";
+  };
+
   return (
     <div className={cn(
-      "flex flex-col h-screen bg-ghost-white",
+      "flex h-screen bg-ghost-white",
       highContrast && "contrast-125 saturate-[1.15] [&_.text-on-surface-variant]:text-on-surface"
     )}>
+
+      {/* ── Desktop sidebar (hi-fi spec) — hidden on mobile, bottom nav takes over ── */}
+      <Sidebar
+        role="technician"
+        activeHref={pathname}
+        userName={userName}
+        userInitials={userInitials}
+        onNavigate={href => router.push(href)}
+        onLogout={handleLogout}
+      />
+
+      <div className="flex flex-col flex-1 min-w-0">
 
       {/* ── Top bar ── */}
       <header className="sticky top-0 z-30 flex items-center gap-3 h-16 px-5
@@ -144,13 +162,13 @@ export function TechnicianShell({
         </div>
       </header>
 
-      {/* ── Scrollable content — pb clears bottom nav ── */}
-      <main className="flex-1 overflow-y-auto pb-20 px-4 py-5">
+      {/* ── Scrollable content — pb clears bottom nav on mobile ── */}
+      <main className="flex-1 overflow-y-auto pb-20 lg:pb-6 px-4 py-5 lg:px-8">
         {children}
       </main>
 
-      {/* ── Bottom navigation ── */}
-      <nav className="fixed bottom-0 left-0 right-0 z-40 bg-midnight-navy border-t border-white/10
+      {/* ── Bottom navigation — mobile only; desktop uses the sidebar ── */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-midnight-navy border-t border-white/10
         shadow-[0_-4px_20px_rgba(0,0,0,0.25)]">
         <div className="flex items-stretch">
           {TECH_NAV.map(({ label, icon: Icon, href }) => {
@@ -183,6 +201,7 @@ export function TechnicianShell({
         </div>
       </nav>
 
+      </div>
     </div>
   );
 }

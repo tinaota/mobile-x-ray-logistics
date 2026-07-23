@@ -9,28 +9,84 @@ import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import { PhlebotomyDrawPanel } from "@/components/domain/PhlebotomyDrawPanel";
 import { cn } from "@/lib/utils";
-import type { Order } from "@/lib/utils";
+import type { Order, OrderStatus } from "@/lib/utils";
+import { facilityCoords, haversineMiles, etaMinutes } from "@/lib/geo";
 import {
   MapPin, Clock, Phone, User, ChevronRight,
   Navigation, Play, CheckCircle, Battery, Wifi,
   Droplet, CheckCircle2,
 } from "lucide-react";
 
-const HUB_COORDS = { lat: 33.4484, lng: -112.0740 };
-
-const FACILITY_COORDS: Record<string, { lat: number; lng: number }> = {
-  "Sunrise Medical Center":   { lat: 33.4795, lng: -112.0890 },
-  "Desert Valley Hospital":    { lat: 33.4750, lng: -112.1280 },
-  "Camelback Rehab Center":    { lat: 33.5090, lng: -112.0780 },
-  "Phoenix Care Facility":     { lat: 33.4280, lng: -112.0620 },
-  "Valley View Nursing Home":  { lat: 33.4880, lng: -112.0220 },
-  "Scottsdale Surgery Center": { lat: 33.5012, lng: -111.9255 },
-  "Central Lab - Level 2":     { lat: 33.4650, lng: -112.0350 },
-  "Stat Lab - ER Wing":        { lat: 33.4520, lng: -112.0820 },
-  "On-site Satellite Lab":     { lat: 33.4820, lng: -112.0520 },
-};
+// Default technician position when live GPS is unavailable
+const TECH_FALLBACK = { lat: 33.462, lng: -112.052 };
 
 const STATUS_ORDER = ["in-progress", "in-transit", "assigned", "en-route", "pending", "complete"] as const;
+
+/** Countdown chip vs the scheduled window, informed by the live ETA. */
+function ScheduleChip({ scheduledTime, etaMin }: { scheduledTime: string; etaMin: number }) {
+  const m = scheduledTime.match(/(\d{1,2}):(\d{2})\s?([AP]M)?/i);
+  if (!m) return <p className="text-[11px] text-on-surface-variant mt-1">{scheduledTime}</p>;
+  const sched = new Date();
+  let hours = parseInt(m[1], 10) % 12;
+  if (m[3]?.toUpperCase() === "PM") hours += 12;
+  sched.setHours(hours, parseInt(m[2], 10), 0, 0);
+  const slackMin = Math.round((sched.getTime() - Date.now()) / 60000) - etaMin;
+
+  const tone =
+    slackMin >= 5   ? { label: "On time",                     cls: "text-green-600",       dot: "bg-green-500"       } :
+    slackMin >= -10 ? { label: "Tight — leave now",           cls: "text-warning-amber-ink", dot: "bg-warning-amber" } :
+                      { label: `Behind ${Math.abs(slackMin)}m`, cls: "text-emergency-red",  dot: "bg-emergency-red animate-pulse" };
+
+  return (
+    <p className={cn("flex items-center gap-1.5 text-[11px] font-semibold mt-1", tone.cls)}>
+      <span className={cn("h-1.5 w-1.5 rounded-full", tone.dot)} /> {tone.label}
+    </p>
+  );
+}
+
+/** Full lifecycle stepper — mirrors real OrderStatus values, lab inserts In Transit. */
+function StatusMachine({ status, isLab }: { status: OrderStatus; isLab: boolean }) {
+  const steps: { key: OrderStatus; label: string }[] = [
+    { key: "assigned",    label: "Dispatched"  },
+    { key: "en-route",    label: "En Route"    },
+    { key: "in-progress", label: isLab ? "Drawing" : "In Progress" },
+    ...(isLab ? [{ key: "in-transit" as OrderStatus, label: "In Transit" }] : []),
+    { key: "complete",    label: "Complete"    },
+    { key: "billed",      label: "Submitted"   },
+  ];
+  const currentIdx = Math.max(0, steps.findIndex(s => s.key === status));
+
+  return (
+    <ol className="space-y-2.5">
+      {steps.map((step, i) => {
+        const state = i < currentIdx ? "done" : i === currentIdx ? "current" : "future";
+        return (
+          <li key={step.key} className="flex items-center gap-3">
+            <span className={cn(
+              "h-5 w-5 rounded-full flex items-center justify-center text-[10px] font-mono font-bold shrink-0",
+              state === "done"    && "bg-green-100 text-green-700",
+              state === "current" && "bg-medical-blue text-white",
+              state === "future"  && "bg-surface-container-high text-on-surface-variant"
+            )}>
+              {state === "done" ? "✓" : i + 1}
+            </span>
+            <span className={cn(
+              "text-sm flex-1",
+              state === "current" ? "font-semibold text-on-surface" : "text-on-surface-variant"
+            )}>
+              {step.label}
+            </span>
+            {state === "current" && (
+              <span className="text-[9px] font-label font-bold uppercase tracking-widest text-medical-blue">
+                Current
+              </span>
+            )}
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
 
 function sortManifest(orders: Order[]): Order[] {
   return [...orders].sort((a, b) => {
@@ -65,27 +121,47 @@ export default function TechnicianActivePage() {
   // Radiology completion overlay (lab flow overlays live in PhlebotomyDrawPanel)
   const [showSuccessOverlay, setShowSuccessOverlay] = useState(false);
 
+  // Technician's live position (GPS when available, hub-area fallback)
+  const techPos = {
+    lat: parker?.latitude ?? TECH_FALLBACK.lat,
+    lng: parker?.longitude ?? TECH_FALLBACK.lng,
+  };
+
+  // Live logistics: real haversine distance + derived ETA to the active facility
+  const dest = facilityCoords(activeOrder?.facilityName);
+  const distanceMiles = activeOrder ? haversineMiles(techPos.lat, techPos.lng, dest.lat, dest.lng) : 0;
+  const etaMin = activeOrder ? etaMinutes(distanceMiles) : 0;
+
   // Dynamic map markers
   const mapMarkers = useMemo<LiveMapMarker[]>(() => {
     if (!activeOrder) {
       return [
-        { id: "me", lat: 33.4620, lng: -112.0520, type: "technician", label: "You" },
+        { id: "me", lat: techPos.lat, lng: techPos.lng, type: "technician", label: "You" },
       ];
     }
-    const coords = FACILITY_COORDS[activeOrder.facilityName] ?? { lat: 33.4795, lng: -112.0890 };
     return [
       {
         id: "dest",
-        lat: coords.lat,
-        lng: coords.lng,
+        lat: dest.lat,
+        lng: dest.lng,
         type: "order",
         label: activeOrder.facilityName,
         priority: activeOrder.priority,
         modality: activeOrder.modality,
       },
-      { id: "me", lat: 33.4620, lng: -112.0520, type: "technician", label: "You" },
+      { id: "me", lat: techPos.lat, lng: techPos.lng, type: "technician", label: "You" },
     ];
-  }, [activeOrder]);
+  }, [activeOrder, dest.lat, dest.lng, techPos.lat, techPos.lng]);
+
+  // Travel path while heading to the destination
+  const mapRoutes = activeOrder && ["assigned", "en-route"].includes(activeOrder.status) ? [{
+    id: "route",
+    positions: [
+      [techPos.lat, techPos.lng],
+      [dest.lat, dest.lng],
+    ] as [number, number][],
+    color: activeOrder.modality === "laboratory" ? "#E11D48" : "#4F46E5",
+  }] : [];
 
   if (loading) {
     return (
@@ -152,17 +228,16 @@ export default function TechnicianActivePage() {
           isInTransit && "in-transit-mode bg-surface-muted"
         )}>
           <CardContent className="space-y-4 py-5">
-            {/* Priority + status row */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <PriorityBadge priority={activeOrder.priority} size="lg" animate={activeOrder.priority === "stat"} />
-                {isLab && (
-                  <span className="px-2 py-0.5 rounded bg-laboratory-rose/10 text-laboratory-rose font-mono text-[9px] font-bold uppercase tracking-wider border border-laboratory-rose/20 flex items-center gap-0.5">
-                    <Droplet className="h-2.5 w-2.5" /> Lab Draw
-                  </span>
-                )}
-              </div>
+            {/* Priority + status row — grouped like the hi-fi spec */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <PriorityBadge priority={activeOrder.priority} size="lg" animate={activeOrder.priority === "stat"} />
               <OrderStatusBadge status={activeOrder.status} />
+              <SyncStatusBadge status="synced" />
+              {isLab && (
+                <span className="px-2 py-0.5 rounded bg-laboratory-rose/10 text-laboratory-rose font-mono text-[9px] font-bold uppercase tracking-wider border border-laboratory-rose/20 flex items-center gap-0.5">
+                  <Droplet className="h-2.5 w-2.5" /> Lab Draw
+                </span>
+              )}
             </div>
 
             {/* Patient + facility */}
@@ -278,12 +353,46 @@ export default function TechnicianActivePage() {
         </Card>
       )}
 
-      {/* Dynamic Map widget */}
+      {/* Dynamic Map widget — active-route treatment per hi-fi spec */}
       <LiveMap
         markers={mapMarkers}
+        routes={mapRoutes}
         height="h-48"
-        showLegend={false}
+        title="Navigation — Active Route"
       />
+
+      {/* Live logistics row: real ETA + distance, schedule countdown */}
+      {activeOrder && (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-4 py-3">
+            <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">ETA</p>
+            <p className="font-mono text-2xl font-bold text-on-surface mt-0.5">{etaMin} min</p>
+            <p className="flex items-center gap-1.5 text-[11px] font-semibold text-medical-blue mt-1">
+              <span className="h-1.5 w-1.5 rounded-full bg-medical-blue animate-pulse" /> Live
+            </p>
+          </div>
+          <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-4 py-3">
+            <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">Distance</p>
+            <p className="font-mono text-2xl font-bold text-on-surface mt-0.5">{distanceMiles.toFixed(1)} mi</p>
+            <p className="text-[11px] text-on-surface-variant mt-1">Great-circle</p>
+          </div>
+          <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-4 py-3">
+            <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">Scheduled</p>
+            <p className="font-mono text-2xl font-bold text-on-surface mt-0.5">{activeOrder.scheduledTime.replace(/\s?[AP]M/i, "")}</p>
+            <ScheduleChip scheduledTime={activeOrder.scheduledTime} etaMin={etaMin} />
+          </div>
+        </div>
+      )}
+
+      {/* Status machine — full lifecycle visibility per hi-fi spec */}
+      {activeOrder && (
+        <div className="bg-white rounded-xl border border-outline-variant/40 shadow-card px-4 py-4">
+          <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant mb-3">
+            Status Machine
+          </p>
+          <StatusMachine status={activeOrder.status} isLab={isLab} />
+        </div>
+      )}
 
       {/* Next Order Preview */}
       {nextOrder && (

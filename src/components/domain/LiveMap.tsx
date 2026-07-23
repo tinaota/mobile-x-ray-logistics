@@ -38,6 +38,7 @@ export interface LiveMapProps {
   height?:           string;
   className?:        string;
   showLegend?:       boolean;
+  title?:            string;           // legend header label (default "Live Fleet Map")
   onMarkerClick?:    (marker: LiveMapMarker) => void;
   selectedMarkerId?: string;           // flies map + highlights marker
 }
@@ -66,6 +67,7 @@ export function LiveMap({
   height  = "h-96",
   className,
   showLegend      = true,
+  title           = "Live Fleet Map",
   onMarkerClick,
   selectedMarkerId,
 }: LiveMapProps) {
@@ -82,7 +84,7 @@ export function LiveMap({
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <span className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-            Live Fleet Map
+            {title}
           </CardTitle>
           <div className="flex items-center gap-3">
             <Badge variant="stat" size="sm">STAT</Badge>

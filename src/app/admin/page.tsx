@@ -2,14 +2,23 @@
 
 import { useState } from "react";
 import { getAccounts } from "@/lib/accounts";
+import { useAdminUsers, presenceOf, lastActiveLabel } from "@/lib/hooks/useAdminUsers";
 import { cn } from "@/lib/utils";
 import {
   Users, Shield, Copy, Check, AlertCircle,
   UserCheck, Mail, UserPlus, X, Send, Trash2,
+  Activity, Clock, Lock, Unlock, Pencil,
 } from "lucide-react";
 // Copy + Check still used inside InviteModal for the fallback link copy button
 import { Card, CardContent, CardHeader } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+
+const PRESENCE_META: Record<ReturnType<typeof presenceOf>, { label: string; dot: string; text: string }> = {
+  active:  { label: "Active",  dot: "bg-green-500",   text: "text-green-700"       },
+  away:    { label: "Away",    dot: "bg-warning-amber", text: "text-warning-amber-ink" },
+  offline: { label: "Offline", dot: "bg-slate-300",   text: "text-on-surface-variant" },
+  locked:  { label: "Locked",  dot: "bg-emergency-red", text: "text-emergency-red"  },
+};
 
 const ROLE_LABELS: Record<string, { label: string; color: string }> = {
   dispatcher: { label: "RAD-COMMAND",      color: "bg-medical-blue/10 text-medical-blue"     },
@@ -199,6 +208,11 @@ export default function AdminPage() {
   const [showInvite,     setShowInvite]     = useState(false);
   const [confirmRemove,  setConfirmRemove]  = useState<string | null>(null);
   const [error,          setError]          = useState<string | null>(null);
+  const { users, invites, loading: usersLoading, demo, setLocked } = useAdminUsers();
+
+  const activeSessions = users.filter(u => presenceOf(u) === "active").length;
+  const lockedCount    = users.filter(u => u.locked).length;
+  const expiringSoon   = invites.filter(i => new Date(i.expiresAt).getTime() - Date.now() < 2 * 60 * 60 * 1000).length;
 
   return (
     <div className="max-w-4xl space-y-6">
@@ -211,7 +225,7 @@ export default function AdminPage() {
           </div>
           <div>
             <h2 className="text-xl font-bold text-on-surface font-headline">User Management</h2>
-            <p className="text-sm text-on-surface-variant">Manage platform accounts and send invitations</p>
+            <p className="text-sm text-on-surface-variant">All roles and access levels</p>
           </div>
         </div>
         <Button
@@ -221,7 +235,7 @@ export default function AdminPage() {
           className="gap-2"
         >
           <UserPlus className="h-4 w-4" />
-          Invite New User
+          Invite User
         </Button>
       </div>
 
@@ -232,32 +246,145 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {demo && (
+        <div className="flex items-center gap-2 bg-blue-tint border border-medical-blue/20 rounded-lg px-4 py-3 text-medical-blue text-xs">
+          <AlertCircle className="h-3.5 w-3.5 shrink-0" />
+          Showing demo data — migration 015_admin_user_management.sql hasn&apos;t been applied yet.
+        </div>
+      )}
+
+      {/* Stats — matches the hi-fi User Management spec */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "Total Accounts", value: accounts.length,                                 icon: Users     },
-          { label: "Active Roles",   value: new Set(accounts.map(a => a.role)).size,         icon: Shield    },
-          { label: "Admin Accounts", value: accounts.filter(a => a.role === "admin").length, icon: UserCheck },
+          { label: "Total Users",      value: users.length,   icon: Users,    sub: null },
+          { label: "Active Sessions",  value: activeSessions, icon: Activity, sub: null },
+          { label: "Pending Invites",  value: invites.length, icon: Mail,
+            sub: expiringSoon > 0 ? `${expiringSoon} expiring` : null },
+          { label: "Locked Accounts",  value: lockedCount,    icon: Lock,
+            sub: lockedCount > 0 ? "Action needed" : null,
+            warn: lockedCount > 0 },
         ].map(stat => (
           <Card key={stat.label} className="shadow-card">
             <CardContent className="p-5">
               <div className="flex items-center justify-between mb-2">
-                <stat.icon className="h-5 w-5 text-on-surface-variant" />
-                <span className="text-2xl font-bold font-mono text-on-surface">{stat.value}</span>
+                <stat.icon className={cn("h-5 w-5", stat.warn ? "text-emergency-red" : "text-on-surface-variant")} />
+                <span className={cn("text-2xl font-bold font-mono", stat.warn ? "text-emergency-red" : "text-on-surface")}>
+                  {usersLoading ? "—" : stat.value}
+                </span>
               </div>
               <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant">
                 {stat.label}
               </p>
+              {stat.sub && (
+                <p className={cn("text-[11px] font-semibold mt-1", stat.warn ? "text-emergency-red" : "text-warning-amber-ink")}>
+                  {stat.sub}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
       </div>
 
-      {/* Account table */}
+      {/* Directory — User / Role / Email / Last Active / Status / Actions */}
       <Card className="shadow-card">
         <CardHeader>
           <h3 className="text-sm font-label font-semibold uppercase tracking-wider text-on-surface-variant">
-            Demo Accounts
+            All Users
+          </h3>
+        </CardHeader>
+        <CardContent className="p-0">
+          <div className="divide-y divide-outline-variant/40">
+            {users.map(u => {
+              const presence = presenceOf(u);
+              const meta = PRESENCE_META[presence];
+              const roleMeta = ROLE_LABELS[u.role];
+              return (
+                <div key={u.id} className="flex items-center gap-4 px-6 py-4 hover:bg-surface-container/40 transition-colors">
+                  <div className="h-9 w-9 rounded-full bg-medical-blue/10 flex items-center justify-center shrink-0">
+                    <span className="text-[11px] font-bold font-mono text-medical-blue">{u.initials}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-on-surface truncate">{u.name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Mail className="h-3 w-3 text-on-surface-variant" />
+                      <p className="text-xs text-on-surface-variant font-mono truncate">{u.email}</p>
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "text-[10px] font-label font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shrink-0 hidden sm:inline-block",
+                    roleMeta?.color
+                  )}>
+                    {roleMeta?.label ?? u.role}
+                  </span>
+                  <span className="flex items-center gap-1.5 text-xs text-on-surface-variant shrink-0 w-24 hidden md:flex">
+                    <Clock className="h-3 w-3" /> {lastActiveLabel(u.lastActiveAt)}
+                  </span>
+                  <span className={cn("flex items-center gap-1.5 text-xs font-semibold shrink-0 w-16", meta.text)}>
+                    <span className={cn("h-1.5 w-1.5 rounded-full", meta.dot)} /> {meta.label}
+                  </span>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {u.locked ? (
+                      <button
+                        onClick={() => setLocked(u.id, false)}
+                        className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-medical-blue hover:bg-medical-blue/10 transition-colors"
+                      >
+                        <Unlock className="h-3.5 w-3.5" /> Unlock
+                      </button>
+                    ) : (
+                      <button
+                        className="h-8 px-2.5 rounded-lg flex items-center gap-1.5 text-xs font-semibold text-on-surface-variant hover:bg-surface-container transition-colors"
+                        title="Edit (not yet implemented)"
+                        disabled
+                      >
+                        <Pencil className="h-3.5 w-3.5" /> Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Pending invites */}
+      {invites.length > 0 && (
+        <Card className="shadow-card">
+          <CardHeader>
+            <h3 className="text-sm font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+              Pending Invites
+            </h3>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="divide-y divide-outline-variant/40">
+              {invites.map(inv => {
+                const msLeft = new Date(inv.expiresAt).getTime() - Date.now();
+                const hoursLeft = Math.max(0, Math.round(msLeft / (60 * 60 * 1000)));
+                const soon = msLeft < 2 * 60 * 60 * 1000;
+                return (
+                  <div key={inv.id} className="flex items-center gap-3 px-6 py-3">
+                    <Mail className="h-4 w-4 text-on-surface-variant shrink-0" />
+                    <span className="text-sm font-mono text-on-surface flex-1 truncate">{inv.email}</span>
+                    <span className={cn(
+                      "text-[11px] font-semibold shrink-0",
+                      soon ? "text-warning-amber-ink" : "text-on-surface-variant"
+                    )}>
+                      Expires in {hoursLeft}h
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Local dev login credentials — separate from the directory above:
+          this list is what src/lib/accounts.ts actually authenticates against. */}
+      <Card className="shadow-card">
+        <CardHeader>
+          <h3 className="text-sm font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+            Local Dev Login Credentials
           </h3>
         </CardHeader>
         <CardContent className="p-0">

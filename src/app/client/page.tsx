@@ -7,6 +7,7 @@ import { LiveMap, type LiveMapMarker } from "@/components/domain/LiveMap";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import { useRatings } from "@/lib/hooks/useRatings";
+import { haversineMiles, etaMinutes, facilityCoords } from "@/lib/geo";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { OrderStatus } from "@/lib/utils";
@@ -52,18 +53,7 @@ const PREP_CHECKLIST = [
   "A family member or caregiver is welcome to stay in the room",
 ];
 
-// Haversine distance formula to calculate mileage between coordinates
-function getHaversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
-  const R = 3958.8; // Earth's radius in miles
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const a = 
-    Math.sin(dLat/2) * Math.sin(dLat/2) +
-    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
-    Math.sin(dLon/2) * Math.sin(dLon/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c;
-}
+// Distance/ETA math + facility coordinates live in the shared geo util
 
 // Hero Status Card configuration mapper based on active order status
 function getHeroConfig(status: OrderStatus, reportStatus: ReportStatus, etaText: string) {
@@ -141,19 +131,19 @@ export default function ClientAppointmentPage() {
     ? technicians.find(t => t.id === order.technicianId || t.name === order.assignedTech) ?? null
     : null;
 
-  // Compute travel-time geodetic ETA
+  // Compute travel-time geodetic ETA to the order's actual facility
+  const dest = facilityCoords(order?.facilityName);
   let etaText = "~15 min away";
   let distanceMiles = 0;
   if (order && activeTech && activeTech.latitude && activeTech.longitude) {
-    distanceMiles = getHaversineDistance(
+    distanceMiles = haversineMiles(
       activeTech.latitude, activeTech.longitude,
-      33.462, -112.089 // default facility / service destination lat/lng
+      dest.lat, dest.lng
     );
     if (distanceMiles < 0.1) {
       etaText = "Arriving now";
     } else {
-      const travelMinutes = Math.max(2, Math.round(distanceMiles * 2.4));
-      etaText = `~${travelMinutes} min away (${distanceMiles.toFixed(1)} mi)`;
+      etaText = `~${etaMinutes(distanceMiles)} min away (${distanceMiles.toFixed(1)} mi)`;
     }
   }
 
@@ -272,7 +262,7 @@ export default function ClientAppointmentPage() {
   };
 
   const mapMarkers: LiveMapMarker[] = order ? [
-    { id: "home", lat: 33.462, lng: -112.089, type: "order", label: order.facilityName, priority: order.priority, color: "#16a34a" },
+    { id: "home", lat: dest.lat, lng: dest.lng, type: "order", label: order.facilityName, priority: order.priority, color: "#16a34a" },
     ...( ["en-route", "in-progress"].includes(order.status) && activeTech ? [{
       id: "tech",
       lat: activeTech.latitude ?? 33.479,
@@ -288,7 +278,7 @@ export default function ClientAppointmentPage() {
     id: "route",
     positions: [
       [activeTech.latitude ?? 33.479, activeTech.longitude ?? -112.063],
-      [33.462, -112.089],
+      [dest.lat, dest.lng],
     ] as [number, number][],
     color: "#3B82F6",
   }] : [];
@@ -624,7 +614,7 @@ export default function ClientAppointmentPage() {
       <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
         <CardContent className="py-5">
           <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant mb-5">
-            Visit Status
+            Appointment Progress
           </p>
           {/* Announces step changes to screen readers without re-reading the whole list */}
           <p className="sr-only" role="status" aria-live="polite">
