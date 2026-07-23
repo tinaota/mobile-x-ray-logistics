@@ -8,7 +8,7 @@ import {
   LayoutDashboard, Map, ClipboardList, Users, FileText,
   DollarSign, Wrench, WifiOff, PlusCircle,
   Wallet, History, BarChart3, ShieldCheck,
-  CalendarCheck, Phone, LogOut, Sparkles,
+  CalendarCheck, Phone, LogOut, Sparkles, FileCheck2,
 } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -24,6 +24,7 @@ const navByRole: Record<Role, NavItem[]> = {
     { label: "Assignment",  icon: <ClipboardList className="h-5 w-5" />,   href: "/dispatcher/assignment" },
     { label: "Intake",      icon: <FileText className="h-5 w-5" />,        href: "/dispatcher/intake" },
     { label: "Credentials", icon: <Users className="h-5 w-5" />,           href: "/dispatcher/credentials" },
+    { label: "Results",     icon: <FileCheck2 className="h-5 w-5" />,      href: "/dispatcher/results" },
     { label: "Billing",     icon: <DollarSign className="h-5 w-5" />,      href: "/dispatcher/billing" },
     { label: "Reports",     icon: <BarChart3 className="h-5 w-5" />,       href: "/dispatcher/reports" },
   ],

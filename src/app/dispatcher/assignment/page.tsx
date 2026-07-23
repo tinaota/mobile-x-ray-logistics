@@ -9,7 +9,7 @@ import { PriorityBadge, OrderStatusBadge, SyncStatusBadge } from "@/components/u
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import type { Order, Technician } from "@/lib/utils";
-import { CheckCircle, RefreshCw, UserPlus, Zap, Droplet } from "lucide-react";
+import { CheckCircle, RefreshCw, UserPlus, UserX, Zap, Droplet } from "lucide-react";
 
 /** A technician is eligible when their discipline covers the order's service line. */
 function isEligible(tech: Technician, order: Order | null): boolean {
@@ -21,15 +21,22 @@ function isEligible(tech: Technician, order: Order | null): boolean {
 }
 
 export default function AssignmentPage() {
-  const { orders, loading, assignOrder }      = useOrders();
-  const { technicians }                       = useTechnicians();
+  const { orders, loading, assignOrder, unassignOrder } = useOrders();
+  const { technicians }                                 = useTechnicians();
 
   const [target,       setTarget]       = useState<Order | null>(null);
   const [selectedTech, setSelectedTech] = useState<string | null>(null);
   const [assigning,    setAssigning]    = useState(false);
+  const [reassigning,  setReassigning]  = useState(false); // modal is in no-show/reassign mode
 
   const unassigned = orders.filter(o => o.status === "pending");
   const inFlight   = orders.filter(o => o.status === "assigned" || o.status === "en-route" || o.status === "in-progress");
+
+  const closeModal = () => {
+    setTarget(null);
+    setSelectedTech(null);
+    setReassigning(false);
+  };
 
   const confirmAssign = async () => {
     if (!target || !selectedTech) return;
@@ -37,8 +44,15 @@ export default function AssignmentPage() {
     const tech = technicians.find(t => t.id === selectedTech);
     if (tech) await assignOrder(target.id, tech.id, tech.name);
     setAssigning(false);
-    setTarget(null);
-    setSelectedTech(null);
+    closeModal();
+  };
+
+  const returnToQueue = async () => {
+    if (!target) return;
+    setAssigning(true);
+    await unassignOrder(target.id);
+    setAssigning(false);
+    closeModal();
   };
 
   return (
@@ -118,6 +132,14 @@ export default function AssignmentPage() {
                   )}
                 </div>
                 <OrderStatusBadge status={order.status} size="sm" />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5 shrink-0"
+                  onClick={() => { setTarget(order); setSelectedTech(null); setReassigning(true); }}
+                >
+                  <UserX className="h-3.5 w-3.5" /> Reassign
+                </Button>
               </div>
             ))}
           </div>
@@ -157,8 +179,8 @@ export default function AssignmentPage() {
       {/* Assign modal */}
       <Modal
         open={!!target}
-        onClose={() => setTarget(null)}
-        title="Assign Order"
+        onClose={closeModal}
+        title={reassigning ? "Reassign Order — No-Show" : "Assign Order"}
         description={target ? `${target.patientName} · ${target.procedure} · ${target.facilityName}` : ""}
         size="md"
       >
@@ -173,7 +195,17 @@ export default function AssignmentPage() {
             )}
           </div>
 
-          {technicians.filter(t => t.online && isEligible(t, target)).map(tech => (
+          {reassigning && target?.assignedTech && (
+            <div className="flex items-start gap-2.5 bg-warning-amber-tint border border-warning-amber/40 rounded-lg px-4 py-3">
+              <UserX className="h-4 w-4 text-warning-amber-ink shrink-0 mt-0.5" />
+              <p className="text-sm text-warning-amber-ink">
+                <strong className="font-semibold">{target.assignedTech}</strong> will be released from this
+                order. Pick a replacement below, or return it to the pending queue.
+              </p>
+            </div>
+          )}
+
+          {technicians.filter(t => t.online && isEligible(t, target) && !(reassigning && t.id === target?.technicianId)).map(tech => (
             <button
               key={tech.id}
               onClick={() => setSelectedTech(tech.id)}
@@ -190,11 +222,18 @@ export default function AssignmentPage() {
             </button>
           ))}
 
-          <div className="flex justify-end gap-2 pt-3">
-            <Button variant="outline" onClick={() => setTarget(null)}>Cancel</Button>
-            <Button variant="primary" disabled={!selectedTech || assigning} onClick={confirmAssign}>
-              {assigning ? "Assigning…" : "Confirm"}
-            </Button>
+          <div className={`flex items-center gap-2 pt-3 ${reassigning ? "justify-between" : "justify-end"}`}>
+            {reassigning && (
+              <Button variant="warning" size="md" className="gap-1.5" disabled={assigning} onClick={returnToQueue}>
+                <UserX className="h-3.5 w-3.5" /> Return to Queue
+              </Button>
+            )}
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={closeModal}>Cancel</Button>
+              <Button variant="primary" disabled={!selectedTech || assigning} onClick={confirmAssign}>
+                {assigning ? (reassigning ? "Reassigning…" : "Assigning…") : reassigning ? "Confirm Reassignment" : "Confirm"}
+              </Button>
+            </div>
           </div>
         </div>
       </Modal>

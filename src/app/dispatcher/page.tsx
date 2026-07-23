@@ -111,7 +111,7 @@ export default function DispatcherHub() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const msgActiveOrders = orders.filter(o => o.status !== "complete" && o.status !== "billed");
   const msgSelectedOrder = orders.find(o => o.id === msgSelectedId) ?? null;
-  const { messages, sendMessage, sendSms } = useMessages(msgSelectedId);
+  const { messages, sendMessage, sendSms, markRead } = useMessages(msgSelectedId);
 
   useEffect(() => {
     if (!msgSelectedId && msgActiveOrders.length > 0) setMsgSelectedId(msgActiveOrders[0].id);
@@ -120,6 +120,11 @@ export default function DispatcherHub() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Viewing a conversation clears its inbound unread badge
+  useEffect(() => {
+    if (messages.some(m => m.senderRole !== "dispatcher" && !m.readAt)) markRead("dispatcher");
+  }, [messages, markRead]);
 
   const handleSend = async () => {
     if (!msgInput.trim()) return;

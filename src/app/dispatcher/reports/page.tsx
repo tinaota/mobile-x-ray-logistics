@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/Button";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
 import { useInvoices } from "@/lib/hooks/useInvoices";
-import { Download, Calendar, CheckCircle2, Users, MapPin, Clock, DollarSign, TrendingDown } from "lucide-react";
+import { useRatings, satisfactionMetrics } from "@/lib/hooks/useRatings";
+import { Download, Calendar, CheckCircle2, Users, MapPin, Clock, DollarSign, TrendingDown, Star } from "lucide-react";
 
 const DATE_RANGES = ["Today", "Last 7 Days", "Last 30 Days", "This Month", "Custom"];
 
@@ -20,6 +21,10 @@ export default function DispatcherReportsPage() {
   const { orders } = useOrders();
   const { technicians, loading: techLoading } = useTechnicians();
   const { invoices } = useInvoices();
+  const { ratings, loading: ratingsLoading } = useRatings();
+
+  // Retention/quality: caregiver ratings rolled into avg stars + NPS-style score
+  const sat = satisfactionMetrics(ratings);
 
   // IDS "Must-Have 8" — computed from live data, no schema changes needed
   const totalExamsToday = technicians.reduce((sum, t) => sum + t.completedToday, 0);
@@ -84,6 +89,39 @@ export default function DispatcherReportsPage() {
         <KPICard label="Avg Response Time"   value="14 min" subtext="−3 min improvement"    subIntent="positive" subIcon="speed" />
         <KPICard label="Completion Rate"     value="94%"   subtext="Above 90% target"       subIntent="positive" subIcon="trending_up" />
         <KPICard label="STAT Response"       value="8 min"  subtext="Within 15 min SLA"     subIntent="positive" subIcon="speed" />
+      </div>
+
+      {/* Retention / quality */}
+      <div>
+        <p className="text-xs font-label font-semibold uppercase tracking-wider text-on-surface-variant mb-3">
+          Facility Satisfaction · Caregiver Ratings
+        </p>
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          <StatCard
+            label="Avg Visit Rating"
+            value={ratingsLoading ? 0 : sat.avg}
+            unit="/ 5"
+            loading={ratingsLoading}
+            icon={<Star className="h-5 w-5 text-warning-amber" />}
+            iconBg="bg-warning-amber/10"
+          />
+          <StatCard
+            label="Satisfaction Score"
+            value={ratingsLoading ? 0 : sat.nps}
+            unit="NPS"
+            loading={ratingsLoading}
+            icon={<Users className="h-5 w-5 text-medical-blue" />}
+            iconBg="bg-medical-blue/10"
+          />
+          <StatCard
+            label="Ratings Collected"
+            value={ratingsLoading ? 0 : sat.count}
+            unit="visits"
+            loading={ratingsLoading}
+            icon={<CheckCircle2 className="h-5 w-5 text-green-600" />}
+            iconBg="bg-green-500/10"
+          />
+        </div>
       </div>
 
       {/* IDS Operations KPIs */}

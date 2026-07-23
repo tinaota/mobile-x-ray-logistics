@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect } from "react";
-import { MapContainer, TileLayer, Marker, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from "react-leaflet";
 import L from "leaflet";
-import type { LiveMapMarker } from "./LiveMap";
+import type { LiveMapMarker, LiveMapRoute } from "./LiveMap";
 
 // ── Tile & attribution ────────────────────────────────────────────────────────
 const LIGHT_TILES = "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png";
@@ -98,6 +98,7 @@ function FlyController({ markers, selectedMarkerId }: {
 // ── Props ─────────────────────────────────────────────────────────────────────
 export interface LiveMapLeafletProps {
   markers:          LiveMapMarker[];
+  routes?:          LiveMapRoute[];
   center:           [number, number]; // [lng, lat] — swapped to Leaflet's [lat, lng] internally
   zoom:             number;
   selectedMarkerId?: string;
@@ -106,7 +107,7 @@ export interface LiveMapLeafletProps {
 
 // ── Main component ────────────────────────────────────────────────────────────
 export function LiveMapLeaflet({
-  markers, center, zoom, selectedMarkerId, onMarkerClick,
+  markers, routes = [], center, zoom, selectedMarkerId, onMarkerClick,
 }: LiveMapLeafletProps) {
   return (
     <MapContainer
@@ -119,6 +120,20 @@ export function LiveMapLeaflet({
       <TileLayer url={LIGHT_TILES} attribution={ATTRIBUTION} maxZoom={19} />
 
       <FlyController markers={markers} selectedMarkerId={selectedMarkerId} />
+
+      {routes.map(r => (
+        <Polyline
+          key={r.id}
+          positions={r.positions}
+          pathOptions={{
+            color: r.color ?? COLOR.technician,
+            weight: 3.5,
+            opacity: 0.85,
+            dashArray: r.dashed === false ? undefined : "8 10",
+            lineCap: "round",
+          }}
+        />
+      ))}
 
       {markers.map(m => (
         <Marker

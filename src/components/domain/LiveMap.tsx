@@ -23,8 +23,16 @@ export interface LiveMapMarker {
   modality?: "radiology" | "laboratory" | string | null;
 }
 
+export interface LiveMapRoute {
+  id: string;
+  positions: [number, number][]; // [lat, lng] waypoints
+  color?: string;
+  dashed?: boolean;
+}
+
 export interface LiveMapProps {
   markers?:          LiveMapMarker[];
+  routes?:           LiveMapRoute[];   // travel paths (e.g. technician → destination)
   center?:           [number, number]; // [lng, lat]
   zoom?:             number;
   height?:           string;
@@ -52,6 +60,7 @@ const LeafletMap = dynamic<LiveMapLeafletProps>(
 // ── Component ─────────────────────────────────────────────────────────────────
 export function LiveMap({
   markers = [],
+  routes  = [],
   center  = [-112.074, 33.4484],
   zoom    = 11,
   height  = "h-96",
@@ -94,6 +103,7 @@ export function LiveMap({
         <div className={cn("w-full", height)}>
           <LeafletMap
             markers={markers}
+            routes={routes}
             center={center}
             zoom={zoom}
             selectedMarkerId={selectedMarkerId}

@@ -13,6 +13,7 @@ const PAGE_META: Record<string, { title: string; subtitle: string }> = {
   "/dispatcher/orders":       { title: "Order Queue",          subtitle: "Incoming & assigned orders"      },
   "/dispatcher/fleet":        { title: "Fleet Management",     subtitle: "Technician status & zones"       },
   "/dispatcher/credentials":  { title: "Credentials",         subtitle: "License & certification tracking" },
+  "/dispatcher/results":      { title: "Results & Interpretation", subtitle: "Read → sign → deliver pipeline" },
   "/dispatcher/billing":      { title: "Billing Overview",     subtitle: "Revenue from completed orders"   },
   "/dispatcher/intake":       { title: "Facility Management",  subtitle: "Healthcare facility directory"   },
   "/dispatcher/reports":      { title: "Analytics & Reports",  subtitle: "Operational performance"         },

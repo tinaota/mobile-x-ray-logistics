@@ -3,7 +3,7 @@
 import { useRouter, usePathname } from "next/navigation";
 import {
   Map, ClipboardList, FileText, LayoutDashboard, Wrench,
-  Wifi, WifiOff, RefreshCw, LogOut,
+  Wifi, WifiOff, RefreshCw, LogOut, Contrast,
 } from "lucide-react";
 import { Avatar } from "@/components/ui/Avatar";
 import { Badge } from "@/components/ui/Badge";
@@ -55,6 +55,18 @@ export function TechnicianShell({
   const { pendingWrites } = useOfflineWrites();
   const [isOnline, setIsOnline] = useState(true);
 
+  // High-contrast field mode — counters bright ambient light (DESIGN.md requirement)
+  const [highContrast, setHighContrast] = useState(false);
+  useEffect(() => {
+    setHighContrast(localStorage.getItem("rad-field-hc") === "1");
+  }, []);
+  const toggleContrast = () => {
+    setHighContrast(prev => {
+      localStorage.setItem("rad-field-hc", prev ? "0" : "1");
+      return !prev;
+    });
+  };
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       setIsOnline(navigator.onLine);
@@ -79,7 +91,10 @@ export function TechnicianShell({
   const sync = SYNC_CONFIG[activeSyncStatus];
 
   return (
-    <div className="flex flex-col h-screen bg-ghost-white">
+    <div className={cn(
+      "flex flex-col h-screen bg-ghost-white",
+      highContrast && "contrast-125 saturate-[1.15] [&_.text-on-surface-variant]:text-on-surface"
+    )}>
 
       {/* ── Top bar ── */}
       <header className="sticky top-0 z-30 flex items-center gap-3 h-16 px-5
@@ -91,6 +106,19 @@ export function TechnicianShell({
           )}
         </div>
         <div className="flex items-center gap-2 shrink-0">
+          <button
+            onClick={toggleContrast}
+            aria-pressed={highContrast}
+            aria-label={`High-contrast field mode ${highContrast ? "on" : "off"}`}
+            className={cn(
+              "h-9 w-9 rounded-lg flex items-center justify-center transition-colors",
+              highContrast
+                ? "bg-midnight-navy text-white"
+                : "text-on-surface-variant hover:bg-surface-container"
+            )}
+          >
+            <Contrast className="h-4 w-4" />
+          </button>
           {/* Sync status — taps to Offline Log */}
           <button
             onClick={() => router.push("/technician/offline")}

@@ -34,7 +34,7 @@ export default function MessagesPage() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const selectedOrder = orders.find(o => o.id === selectedId) ?? null;
-  const { messages, sendMessage } = useMessages(selectedId);
+  const { messages, sendMessage, markRead } = useMessages(selectedId);
 
   useEffect(() => {
     if (!selectedId && activeOrders.length > 0) setSelectedId(activeOrders[0].id);
@@ -43,6 +43,11 @@ export default function MessagesPage() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Viewing a conversation clears its inbound unread badge
+  useEffect(() => {
+    if (messages.some(m => m.senderRole !== "dispatcher" && !m.readAt)) markRead("dispatcher");
+  }, [messages, markRead]);
 
   const handleSend = async () => {
     if (!input.trim()) return;

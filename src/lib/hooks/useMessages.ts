@@ -98,7 +98,18 @@ export function useMessages(orderId: string | null) {
     }
   };
 
-  return { messages, loading, sendMessage, sendSms, refetch: fetchMessages };
+  // Mark inbound messages (anyone but `readerRole`) as read — clears unread badges
+  const markRead = useCallback(async (readerRole: Message["senderRole"]) => {
+    if (!orderId) return;
+    await supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .eq("order_id", orderId)
+      .neq("sender_role", readerRole)
+      .is("read_at", null);
+  }, [orderId]);
+
+  return { messages, loading, sendMessage, sendSms, markRead, refetch: fetchMessages };
 }
 
 export function useAllMessages() {

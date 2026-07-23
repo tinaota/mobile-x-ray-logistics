@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/Button";
 import { LiveMap, type LiveMapMarker } from "@/components/domain/LiveMap";
 import { useOrders } from "@/lib/hooks/useOrders";
 import { useTechnicians } from "@/lib/hooks/useTechnicians";
+import { useRatings } from "@/lib/hooks/useRatings";
 import { supabase } from "@/lib/supabase";
 import { cn } from "@/lib/utils";
 import type { OrderStatus } from "@/lib/utils";
 import {
   CheckCircle2, MapPin, Phone, Clock, User,
   AlertTriangle, CalendarCheck, MessageCircle,
-  ChevronRight, Info, X, Send, Sparkles, Shield,
+  ChevronRight, Info, X, Send, Sparkles, Shield, Star,
 } from "lucide-react";
 
 type ReportStatus = "pending" | "dictated" | "signed" | "delivered";
@@ -175,6 +176,23 @@ export default function ClientAppointmentPage() {
     setPrepDismissed(true);
   };
 
+  // Visit rating — asked once per order after scan complete
+  const { submitRating } = useRatings();
+  const ratingKey = order ? `visit-rated-${order.id}` : null;
+  const [rated, setRated]             = useState(false);
+  const [starHover, setStarHover]     = useState(0);
+  const [starValue, setStarValue]     = useState(0);
+  const [ratingComment, setRatingComment] = useState("");
+  useEffect(() => {
+    if (ratingKey) setRated(!!localStorage.getItem(ratingKey));
+  }, [ratingKey]);
+  const sendRating = async () => {
+    if (!order || starValue === 0) return;
+    await submitRating(order.id, order.facilityName, starValue, ratingComment);
+    if (ratingKey) localStorage.setItem(ratingKey, "1");
+    setRated(true);
+  };
+
   // Interactive Checklist Checkboxes state
   const [checkedItems, setCheckedItems] = useState<Record<number, boolean>>({});
   const toggleCheck = (idx: number) => {
@@ -184,7 +202,7 @@ export default function ClientAppointmentPage() {
 
   // Access instructions message — direct DB insert & chat log simulation
   const [accessNote, setAccessNote]   = useState("");
-  const [messages, setMessages] = useState<{ id: string; sender_role: string; sender_name: string; content: string; created_at: string }[]>([]);
+  const [messages, setMessages] = useState<{ id: string; sender_role: string; sender_name: string; content: string; created_at: string; read_at: string | null }[]>([]);
 
   // Fetch initial messages & subscribe to real-time updates for this order
   useEffect(() => {
@@ -227,6 +245,18 @@ export default function ClientAppointmentPage() {
     };
   }, [order]);
 
+  // Reading the thread clears inbound (dispatcher/technician) unread state
+  useEffect(() => {
+    if (!order) return;
+    const unreadInbound = messages.filter(m => m.sender_role !== "patient" && !m.read_at);
+    if (unreadInbound.length === 0) return;
+    supabase
+      .from("messages")
+      .update({ read_at: new Date().toISOString() })
+      .in("id", unreadInbound.map(m => m.id))
+      .then(() => {});
+  }, [messages, order]);
+
   const sendAccessNote = async () => {
     if (!accessNote.trim() || !order) return;
     const { error } = await supabase.from("messages").insert({
@@ -252,6 +282,16 @@ export default function ClientAppointmentPage() {
       status: order.status === "en-route" ? "En Route" : "Arrived",
     }] : []),
   ] : [];
+
+  // Travel path technician → home while en-route (dashed, Uber-style)
+  const mapRoutes = order?.status === "en-route" && activeTech ? [{
+    id: "route",
+    positions: [
+      [activeTech.latitude ?? 33.479, activeTech.longitude ?? -112.063],
+      [33.462, -112.089],
+    ] as [number, number][],
+    color: "#3B82F6",
+  }] : [];
 
   const showPrep      = order?.status === "assigned" && !prepDismissed;
   const showMap       = mapMarkers.length > 0;
@@ -550,7 +590,7 @@ export default function ClientAppointmentPage() {
                         <p className="leading-snug">{contentStr}</p>
                         <div className={cn("flex items-center gap-1 text-[9px] mt-1", isPatient ? "text-white/80 justify-end" : "text-slate-400 justify-start")}>
                           {isPatient && <CheckCircle2 className="h-3 w-3 text-white/90" />}
-                          <span>Delivered</span>
+                          <span>{isPatient && msg.read_at ? "Read" : "Delivered"}</span>
                         </div>
                       </div>
                     </div>
@@ -585,6 +625,10 @@ export default function ClientAppointmentPage() {
         <CardContent className="py-5">
           <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant mb-5">
             Visit Status
+          </p>
+          {/* Announces step changes to screen readers without re-reading the whole list */}
+          <p className="sr-only" role="status" aria-live="polite">
+            Current step: {STEPS[activeStep]?.label}. {STEPS[activeStep]?.caption}
           </p>
           <div className="flex flex-col">
             {STEPS.map((step, i) => {
@@ -633,7 +677,7 @@ export default function ClientAppointmentPage() {
       </Card>
 
       {/* Live map — en-route or in-progress only */}
-      {showMap && <LiveMap markers={mapMarkers} height="h-48" showLegend={false} />}
+      {showMap && <LiveMap markers={mapMarkers} routes={mapRoutes} height="h-48" showLegend={false} />}
 
       {/* Results status — after scan complete */}
       {showResults && (
@@ -651,6 +695,65 @@ export default function ClientAppointmentPage() {
             )}
           </div>
         </div>
+      )}
+
+      {/* Visit rating — once per order, after scan complete */}
+      {showResults && (
+        <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
+          <CardContent className="py-5 space-y-3">
+            {rated ? (
+              <div className="flex items-center gap-2.5 text-green-ink">
+                <CheckCircle2 className="h-5 w-5 shrink-0" />
+                <p className="text-sm font-medium">Thank you — your feedback helps us improve every visit.</p>
+              </div>
+            ) : (
+              <>
+                <p className="text-[10px] font-label font-semibold uppercase tracking-wider text-on-surface-variant">
+                  How was your visit?
+                </p>
+                <div className="flex items-center gap-1" role="radiogroup" aria-label="Rate your visit from 1 to 5 stars">
+                  {[1, 2, 3, 4, 5].map(n => (
+                    <button
+                      key={n}
+                      type="button"
+                      role="radio"
+                      aria-checked={starValue === n}
+                      aria-label={`${n} star${n > 1 ? "s" : ""}`}
+                      onClick={() => setStarValue(n)}
+                      onMouseEnter={() => setStarHover(n)}
+                      onMouseLeave={() => setStarHover(0)}
+                      className="h-12 w-12 flex items-center justify-center rounded-proto-sm transition-transform active:scale-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-blue"
+                    >
+                      <Star className={cn(
+                        "h-7 w-7 transition-colors",
+                        (starHover || starValue) >= n
+                          ? "fill-warning-amber text-warning-amber"
+                          : "text-outline-variant"
+                      )} />
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={ratingComment}
+                    onChange={e => setRatingComment(e.target.value)}
+                    placeholder="Anything we should know? (optional)"
+                    aria-label="Feedback comment (optional)"
+                    className="flex-1 h-12 px-3 rounded-proto-md bg-slate-50 border border-outline-variant text-sm text-on-surface placeholder:text-on-surface-variant/50 focus:outline-none focus:ring-2 focus:ring-medical-blue focus:border-transparent"
+                  />
+                  <button
+                    onClick={sendRating}
+                    disabled={starValue === 0}
+                    className="h-12 px-4 rounded-proto-md bg-medical-blue text-white text-sm font-semibold disabled:opacity-40 disabled:pointer-events-none hover:bg-blue-600 transition-all duration-150"
+                  >
+                    Submit
+                  </button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
       )}
 
       {/* Help card — hidden after results delivered */}

@@ -101,7 +101,10 @@ export function useOrders() {
   };
 
   const assignOrder = async (id: string, technicianId: string, assignedTech: string) => {
-    if (!supabaseConfigured) return;
+    if (!supabaseConfigured) {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, technicianId, assignedTech, status: "assigned" } : o));
+      return;
+    }
     const { error } = await supabase
       .from("orders")
       .update({ technician_id: technicianId, assigned_tech: assignedTech, status: "assigned" })
@@ -109,5 +112,28 @@ export function useOrders() {
     if (error) setError(error.message);
   };
 
-  return { orders, loading, error, updateOrderStatus, assignOrder, refetch: fetchOrders };
+  // Interpretation pipeline: advance report_status (pending → dictated → signed → delivered)
+  const updateReportStatus = async (id: string, reportStatus: NonNullable<Order["reportStatus"]>) => {
+    if (!supabaseConfigured) {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, reportStatus } : o));
+      return;
+    }
+    const { error } = await supabase.from("orders").update({ report_status: reportStatus }).eq("id", id);
+    if (error) setError(error.message);
+  };
+
+  // No-show handling: release the order back to the pending queue
+  const unassignOrder = async (id: string) => {
+    if (!supabaseConfigured) {
+      setOrders(prev => prev.map(o => o.id === id ? { ...o, technicianId: undefined, assignedTech: undefined, status: "pending" } : o));
+      return;
+    }
+    const { error } = await supabase
+      .from("orders")
+      .update({ technician_id: null, assigned_tech: null, status: "pending" })
+      .eq("id", id);
+    if (error) setError(error.message);
+  };
+
+  return { orders, loading, error, updateOrderStatus, assignOrder, unassignOrder, updateReportStatus, refetch: fetchOrders };
 }

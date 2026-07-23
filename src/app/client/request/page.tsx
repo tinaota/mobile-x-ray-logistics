@@ -9,7 +9,7 @@ import { supabase } from "@/lib/supabase";
 import { useSession } from "@/lib/hooks/useSession";
 import { cn } from "@/lib/utils";
 import {
-  User, MapPin, Stethoscope, Calendar, Droplet, Zap,
+  User, MapPin, Stethoscope, Droplet, Zap,
   Lock, FileText, ChevronLeft, CheckCircle2, Info, RefreshCw
 } from "lucide-react";
 
@@ -435,18 +435,41 @@ export default function RequestAppointmentPage() {
                 )}
 
                 <div>
-                  <label htmlFor="preferred-date" className={labelCls}>Preferred Date</label>
-                  <div className="relative">
-                    <input
-                      id="preferred-date"
-                      type="date"
-                      value={form.date}
-                      onChange={e => set("date", e.target.value)}
-                      className={cn(inputCls, "pr-10")}
-                    />
-                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">
-                      <Calendar className="h-4.5 w-4.5" />
-                    </div>
+                  <label id="preferred-date-label" className={labelCls}>Preferred Date</label>
+                  {/* Horizontal 7-day strip — one-tap scheduling, no native picker overlay */}
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="preferred-date-label"
+                    className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin"
+                  >
+                    {dateOptions.map((opt, i) => {
+                      const isSelected = form.date === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          role="radio"
+                          aria-checked={isSelected}
+                          aria-label={`${opt.dayName} ${opt.monthName} ${opt.dayNum}`}
+                          onClick={() => set("date", opt.value)}
+                          className={cn(
+                            "flex flex-col items-center justify-center shrink-0 w-16 h-[72px] rounded-proto-md border-2 transition-all duration-150",
+                            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-medical-blue",
+                            isSelected
+                              ? "border-medical-blue bg-blue-tint text-medical-blue shadow-sm"
+                              : "border-outline-variant/60 bg-white text-on-surface-variant hover:border-medical-blue/50"
+                          )}
+                        >
+                          <span className="text-[10px] font-label font-semibold uppercase tracking-wider">
+                            {i === 0 ? "Today" : opt.dayName}
+                          </span>
+                          <span className={cn("text-xl font-mono font-bold leading-tight", isSelected ? "text-medical-blue" : "text-on-surface")}>
+                            {opt.dayNum}
+                          </span>
+                          <span className="text-[10px] font-medium">{opt.monthName}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
