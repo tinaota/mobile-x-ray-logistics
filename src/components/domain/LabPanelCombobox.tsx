@@ -12,6 +12,8 @@ interface LabPanelComboboxProps {
   className?: string;
   /** Extra classes for the trigger button (to match host form inputs). */
   inputClassName?: string;
+  /** id applied to the trigger button, so a parent <label htmlFor> can reference it. */
+  id?: string;
 }
 
 /**
@@ -19,7 +21,7 @@ interface LabPanelComboboxProps {
  * Urinalysis, …). Type to filter; click or Enter to select.
  */
 export function LabPanelCombobox({
-  value, onChange, options, placeholder = "Search lab panels…", className, inputClassName,
+  value, onChange, options, placeholder = "Search lab panels…", className, inputClassName, id,
 }: LabPanelComboboxProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -47,6 +49,7 @@ export function LabPanelCombobox({
     <div ref={rootRef} className={cn("relative", className)}>
       {/* Trigger */}
       <button
+        id={id}
         type="button"
         onClick={() => setOpen(o => !o)}
         className={cn(

@@ -52,7 +52,7 @@ export function SpecimenStabilityBadge({ specimen, className }: SpecimenStabilit
 
   const expired = diff <= 0;
   const tone = expired
-    ? "bg-emergency-red text-white border-emergency-red animate-pulse"
+    ? "bg-red-600 text-white border-red-600 animate-pulse"
     : pct > 50
       ? "bg-laboratory-emerald/10 text-laboratory-emerald border-laboratory-emerald/20"
       : pct > 20

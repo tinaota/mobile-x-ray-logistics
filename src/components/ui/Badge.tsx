@@ -10,7 +10,7 @@ const badgeVariants = cva(
         default:   "bg-surface-container text-on-surface-variant",
         primary:   "bg-midnight-navy text-white",
         secondary: "bg-medical-blue text-white",
-        stat:      "bg-emergency-red text-white",
+        stat:      "bg-red-600 text-white",
         urgent:    "bg-warning-amber text-midnight-navy",
         routine:   "bg-surface-container-high text-on-surface-variant",
         success:   "bg-green-100 text-green-800",

@@ -38,7 +38,7 @@ interface PriorityBadgeProps {
 }
 
 const priorityConfig: Record<Priority, { label: string; className: string; dot: string }> = {
-  stat:    { label: "STAT",    className: "bg-emergency-red text-white",         dot: "bg-white" },
+  stat:    { label: "STAT",    className: "bg-red-600 text-white",               dot: "bg-white" },
   urgent:  { label: "URGENT",  className: "bg-warning-amber text-midnight-navy", dot: "bg-midnight-navy" },
   routine: { label: "ROUTINE", className: "bg-surface-container-high text-on-surface-variant", dot: "bg-on-surface-variant" },
 };

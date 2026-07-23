@@ -289,14 +289,15 @@ export default function IntakePage() {
               {/* Modality Twin Cards (Failsafe Inception) */}
               {!order.modality ? (
                 <div className="space-y-4">
-                  <label className="font-mono text-xs font-bold uppercase tracking-wider text-on-surface-variant block">
+                  <label id="service-line-label" className="font-mono text-xs font-bold uppercase tracking-wider text-on-surface-variant block">
                     Select Service Line (Required)
                   </label>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div role="group" aria-labelledby="service-line-label" className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {/* Radiology Card */}
-                    <div 
+                    <button
+                      type="button"
                       onClick={() => handleSwitchModality("radiology")}
-                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-radiology-indigo active:scale-[0.99]"
+                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-radiology-indigo active:scale-[0.99] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-radiology-indigo focus-visible:ring-offset-2"
                     >
                       <div className="flex justify-between items-start mb-6">
                         <div className="bg-radiology-indigo text-white p-3 rounded-xl">
@@ -309,12 +310,13 @@ export default function IntakePage() {
                           Portable X-Ray, Ultrasound, or EKG studies at bedside.
                         </p>
                       </div>
-                    </div>
+                    </button>
 
                     {/* Laboratory Card */}
-                    <div 
+                    <button
+                      type="button"
                       onClick={() => handleSwitchModality("laboratory")}
-                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-laboratory-rose active:scale-[0.99]"
+                      className="group flex flex-col justify-between bg-white border-2 border-border-subtle p-6 rounded-xl transition-all duration-300 hover:shadow-lg cursor-pointer hover:border-laboratory-rose active:scale-[0.99] text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-laboratory-rose focus-visible:ring-offset-2"
                     >
                       <div className="flex justify-between items-start mb-6">
                         <div className="bg-laboratory-rose text-white p-3 rounded-xl">
@@ -327,7 +329,7 @@ export default function IntakePage() {
                           Phlebotomy draws and transport with specimen stability monitors.
                         </p>
                       </div>
-                    </div>
+                    </button>
                   </div>
                   {modalityError && <p className="text-xs text-emergency-red font-semibold">{modalityError}</p>}
                 </div>
@@ -386,8 +388,9 @@ export default function IntakePage() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       {isLabOrder ? (
                         <div>
-                          <label className="block text-sm font-medium text-on-surface mb-1.5">Lab Panel / CPT Code</label>
+                          <label htmlFor="lab-panel-cpt-code" className="block text-sm font-medium text-on-surface mb-1.5">Lab Panel / CPT Code</label>
                           <LabPanelCombobox
+                            id="lab-panel-cpt-code"
                             value={activeProcedures.find(p => p.value === order.cptCode)?.label ?? ""}
                             onChange={label => {
                               const proc = activeProcedures.find(p => p.label === label);

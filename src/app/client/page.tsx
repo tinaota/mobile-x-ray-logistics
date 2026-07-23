@@ -290,7 +290,7 @@ export default function ClientAppointmentPage() {
               </Button>
               <Button variant="outline" size="lg" className="w-full h-12 rounded-proto-md transition-colors gap-2">
                 <Phone className="h-4 w-4" />
-                Call Dispatcher
+                Call Care Coordinator
               </Button>
             </div>
           </CardContent>
@@ -322,28 +322,44 @@ export default function ClientAppointmentPage() {
 
       {/* Dynamic Hero Status Card — Liquid Glass Gradient treatments */}
       {heroCfg && (
-        <div className={cn(
-          "relative overflow-hidden rounded-proto-xl p-6 text-white shadow-proto-pop transition-all duration-300 animate-fade-in",
-          heroCfg.tone === "blue"  ? "bg-gradient-to-br from-blue-500 to-blue-700" :
-          heroCfg.tone === "navy"  ? "bg-gradient-to-br from-slate-700 to-midnight-navy" :
-          heroCfg.tone === "amber" ? "bg-gradient-to-br from-amber-500 to-warning-amber" :
-                                     "bg-gradient-to-br from-green-500 to-green-700"
-        )}>
+        <div
+          role="status"
+          aria-live="polite"
+          className="relative overflow-hidden rounded-proto-xl p-6 text-white shadow-proto-pop bg-gradient-to-br from-slate-700 to-midnight-navy animate-fade-in"
+        >
+          {/* Gradient layers crossfade on status change — background-image itself can't transition */}
+          {([
+            ["blue",  "bg-gradient-to-br from-blue-500 to-blue-700"],
+            ["navy",  "bg-gradient-to-br from-slate-700 to-midnight-navy"],
+            ["amber", "bg-gradient-to-br from-amber-500 to-warning-amber"],
+            ["green", "bg-gradient-to-br from-green-500 to-green-700"],
+          ] as const).map(([tone, gradient]) => (
+            <div
+              key={tone}
+              aria-hidden="true"
+              className={cn(
+                "absolute inset-0 pointer-events-none transition-opacity duration-700 ease-in-out",
+                gradient,
+                heroCfg.tone === tone ? "opacity-100" : "opacity-0"
+              )}
+            />
+          ))}
           {/* Background shine sphere */}
           <div className="absolute -top-12 -right-12 h-44 w-44 rounded-full bg-white/10 filter blur-md pointer-events-none" />
-          
+
+          <div className="relative">
           <div className="flex items-center gap-2 text-[10px] font-label font-semibold uppercase tracking-wider text-white/80">
             <heroCfg.icon className="h-4 w-4 shrink-0" />
             {heroCfg.eyebrow}
           </div>
-          
+
           <p className="text-2xl font-bold leading-tight mt-3 mb-1.5">{heroCfg.title}</p>
           <p className="text-sm text-white/95 leading-relaxed">{heroCfg.sub}</p>
-          
+
           {heroCfg.eta && (
             <div className="mt-4 pt-4 border-t border-white/20 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <span className="relative flex h-2.5 w-2.5">
+                <span className="relative flex h-2.5 w-2.5" aria-hidden="true">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75" />
                   <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white" />
                 </span>
@@ -358,6 +374,7 @@ export default function ClientAppointmentPage() {
               </p>
             </div>
           )}
+          </div>
         </div>
       )}
 
@@ -644,21 +661,21 @@ export default function ClientAppointmentPage() {
               Need Help?
             </p>
             <p className="text-sm text-on-surface-variant">
-              Questions about your appointment or arrival time? Your dispatcher is available to help.
+              Questions about your appointment or arrival time? Your care coordinator is available to help.
             </p>
             <Button variant="primary" size="lg" className="w-full h-12 rounded-proto-md shadow-proto-fab gap-2 hover:bg-blue-600 transition-all duration-150">
-              <Phone className="h-4 w-4" /> Call Dispatcher
+              <Phone className="h-4 w-4" /> Call Care Coordinator
             </Button>
           </CardContent>
         </Card>
       )}
 
-      {/* Sticky FAB — Call Dispatcher */}
+      {/* Sticky FAB — Call Care Coordinator */}
       {!isComplete && !isTracking && (
         <div className="fixed bottom-20 right-4 z-30 animate-bounce">
           <button
             className="h-14 w-14 rounded-full bg-medical-blue shadow-proto-fab flex items-center justify-center text-white hover:bg-blue-600 active:scale-90 transition-all duration-150"
-            aria-label="Call Dispatcher"
+            aria-label="Call Care Coordinator"
           >
             <Phone className="h-5 w-5" />
           </button>

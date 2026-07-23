@@ -82,7 +82,7 @@ export default function MessagesPage() {
                   <span className="font-mono text-xs font-bold text-on-surface truncate">{order.id}</span>
                   <div className="flex items-center gap-1.5 shrink-0">
                     {unread > 0 && (
-                      <span className="h-4 min-w-[1rem] px-1 rounded-full bg-emergency-red text-white text-[9px] font-bold flex items-center justify-center">
+                      <span className="h-4 min-w-[1rem] px-1 rounded-full bg-red-600 text-white text-[9px] font-bold flex items-center justify-center">
                         {unread}
                       </span>
                     )}

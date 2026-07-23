@@ -18,11 +18,11 @@ const buttonVariants = cva(
         ghost:
           "bg-transparent text-on-surface hover:bg-surface-container focus-visible:ring-midnight-navy",
         danger:
-          "bg-emergency-red text-white hover:bg-red-600 active:bg-red-700 focus-visible:ring-emergency-red",
+          "bg-red-600 text-white hover:bg-red-700 active:bg-red-800 focus-visible:ring-red-600",
         warning:
           "bg-warning-amber text-midnight-navy hover:bg-amber-500 active:bg-amber-600 focus-visible:ring-warning-amber",
         stat:
-          "bg-emergency-red text-white font-bold uppercase tracking-wider hover:bg-red-600 focus-visible:ring-emergency-red",
+          "bg-red-600 text-white font-bold uppercase tracking-wider hover:bg-red-700 focus-visible:ring-red-600",
       },
       size: {
         sm:   "h-8 px-3 text-xs rounded-md",

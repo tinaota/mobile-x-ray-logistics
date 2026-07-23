@@ -149,7 +149,7 @@ export default function ScrubbingPage() {
                           "text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all capitalize",
                           chosenAction === act
                             ? act === "fix"      ? "bg-medical-blue text-white border-medical-blue"
-                            : act === "escalate" ? "bg-emergency-red text-white border-emergency-red"
+                            : act === "escalate" ? "bg-red-600 text-white border-red-600"
                             :                      "bg-slate-200 text-slate-700 border-slate-300"
                             : "border-outline-variant text-on-surface-variant hover:border-medical-blue/50"
                         )}

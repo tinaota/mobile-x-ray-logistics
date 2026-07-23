@@ -237,14 +237,15 @@ export default function RequestAppointmentPage() {
       {/* Modality selector twin cards (Failsafe Inception) */}
       {!form.modality ? (
         <div className="space-y-3">
-          <p className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant pl-1">
+          <p id="service-type-label" className="text-[11.5px] font-label font-semibold uppercase tracking-wider text-on-surface-variant pl-1">
             Choose Service Type
           </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div role="group" aria-labelledby="service-type-label" className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {/* Radiology Card */}
-            <div
+            <button
+              type="button"
               onClick={() => handleSwitchModality("radiology")}
-              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-radiology-indigo transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px]"
+              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-radiology-indigo focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-radiology-indigo transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px] text-left"
             >
               <div className="bg-radiology-indigo/10 text-radiology-indigo p-2.5 rounded-lg w-fit">
                 <Zap className="h-6 w-6" />
@@ -253,12 +254,13 @@ export default function RequestAppointmentPage() {
                 <h4 className="text-sm font-bold text-on-surface mt-4">Bedside Radiology</h4>
                 <p className="text-xs text-on-surface-variant mt-1 leading-normal">X-Ray, Ultrasound, or EKG diagnostics</p>
               </div>
-            </div>
+            </button>
 
             {/* Laboratory Card */}
-            <div
+            <button
+              type="button"
               onClick={() => handleSwitchModality("laboratory")}
-              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-laboratory-rose transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px]"
+              className="bg-white border-2 border-border-subtle p-6 rounded-xl hover:border-laboratory-rose focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-laboratory-rose transition-all cursor-pointer shadow-card hover:shadow-md flex flex-col justify-between min-h-[140px] text-left"
             >
               <div className="bg-laboratory-rose/10 text-laboratory-rose p-2.5 rounded-lg w-fit">
                 <Droplet className="h-6 w-6" />
@@ -267,7 +269,7 @@ export default function RequestAppointmentPage() {
                 <h4 className="text-sm font-bold text-on-surface mt-4">Mobile Phlebotomy</h4>
                 <p className="text-xs text-on-surface-variant mt-1 leading-normal">Blood draws, processing, & lab deliveries</p>
               </div>
-            </div>
+            </button>
           </div>
         </div>
       ) : (
@@ -301,8 +303,9 @@ export default function RequestAppointmentPage() {
             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
               <CardContent className="py-5 space-y-4">
                 <div>
-                  <label className={labelCls}>Patient Name</label>
+                  <label htmlFor="patient-name" className={labelCls}>Patient Name</label>
                   <input
+                    id="patient-name"
                     type="text"
                     readOnly
                     value={patientName}
@@ -311,8 +314,9 @@ export default function RequestAppointmentPage() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Date of Birth</label>
+                  <label htmlFor="patient-dob" className={labelCls}>Date of Birth</label>
                   <input
+                    id="patient-dob"
                     type="date"
                     value={form.dob}
                     onChange={e => set("dob", e.target.value)}
@@ -331,24 +335,27 @@ export default function RequestAppointmentPage() {
             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
               <CardContent className="py-5 space-y-4">
                 <div>
-                  <label className={labelCls}>Street Address</label>
+                  <label htmlFor="street-address" className={labelCls}>Street Address</label>
                   <input
+                    id="street-address"
                     type="text"
                     value={form.address}
                     onChange={e => set("address", e.target.value)}
                     placeholder="123 Main St, Phoenix, AZ 85001"
+                    aria-describedby={addressWarning ? "address-warning" : undefined}
                     className={inputCls}
                   />
                   {addressWarning && (
-                    <p className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
+                    <p id="address-warning" className="text-[11px] text-amber-600 font-semibold mt-1.5 flex items-center gap-1">
                       ⚠️ {addressWarning}
                     </p>
                   )}
                 </div>
 
                 <div>
-                  <label className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
+                  <label htmlFor="unit-floor-room" className={labelCls}>Unit / Floor / Room <span className="normal-case font-normal text-on-surface-variant/60">(optional)</span></label>
                   <input
+                    id="unit-floor-room"
                     type="text"
                     value={form.unit}
                     onChange={e => set("unit", e.target.value)}
@@ -368,9 +375,10 @@ export default function RequestAppointmentPage() {
             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
               <CardContent className="py-5 space-y-5">
                 <div>
-                  <label className={labelCls}>Requested Study / Panel</label>
+                  <label htmlFor="requested-procedure" className={labelCls}>Requested Study / Panel</label>
                   {form.modality === "laboratory" ? (
                     <LabPanelCombobox
+                      id="requested-procedure"
                       value={form.procedure}
                       onChange={v => set("procedure", v)}
                       options={LABORATORY_PROCEDURES}
@@ -380,6 +388,7 @@ export default function RequestAppointmentPage() {
                   ) : (
                     <div className="relative">
                       <select
+                        id="requested-procedure"
                         value={form.procedure}
                         onChange={e => set("procedure", e.target.value)}
                         className={cn(inputCls, "appearance-none pr-8 cursor-pointer")}
@@ -426,9 +435,10 @@ export default function RequestAppointmentPage() {
                 )}
 
                 <div>
-                  <label className={labelCls}>Preferred Date</label>
+                  <label htmlFor="preferred-date" className={labelCls}>Preferred Date</label>
                   <div className="relative">
                     <input
+                      id="preferred-date"
                       type="date"
                       value={form.date}
                       onChange={e => set("date", e.target.value)}
@@ -441,8 +451,12 @@ export default function RequestAppointmentPage() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Preferred Time</label>
-                  <div className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md">
+                  <label id="preferred-time-label" className={labelCls}>Preferred Time</label>
+                  <div
+                    role="radiogroup"
+                    aria-labelledby="preferred-time-label"
+                    className="grid grid-cols-3 gap-1 bg-[#eef1f6] p-1 rounded-proto-md"
+                  >
                     {[
                       { label: "Morning",   sub: "7a-12p" },
                       { label: "Afternoon", sub: "12p-5p" },
@@ -453,6 +467,8 @@ export default function RequestAppointmentPage() {
                         <button
                           key={slot.label}
                           type="button"
+                          role="radio"
+                          aria-checked={isSelected}
                           onClick={() => set("timeSlot", slot.label)}
                           className={cn(
                             "flex flex-col items-center justify-center py-2 px-1 rounded-proto-sm transition-all duration-150",
@@ -482,8 +498,9 @@ export default function RequestAppointmentPage() {
             <Card className="rounded-proto-lg shadow-proto-card border border-outline-variant/40 bg-white overflow-hidden">
               <CardContent className="py-5 space-y-4">
                 <div>
-                  <label className={labelCls}>Access Instructions</label>
+                  <label htmlFor="access-instructions" className={labelCls}>Access Instructions</label>
                   <textarea
+                    id="access-instructions"
                     value={form.accessNotes}
                     onChange={e => set("accessNotes", e.target.value)}
                     placeholder="Gate code, parking instructions, elevator location…"
@@ -493,8 +510,9 @@ export default function RequestAppointmentPage() {
                 </div>
 
                 <div>
-                  <label className={labelCls}>Special Notes for Technician</label>
+                  <label htmlFor="special-notes" className={labelCls}>Special Notes for Technician</label>
                   <textarea
+                    id="special-notes"
                     value={form.specialNotes}
                     onChange={e => set("specialNotes", e.target.value)}
                     placeholder="Anything the technician should know before arriving…"
